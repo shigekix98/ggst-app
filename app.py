@@ -138,76 +138,73 @@ if len(view) > 0:
 else:
     st.info("絞り込み結果に該当する戦績がありません")
 
-    # ==========================
-    # 勝率＆試合数推移
-    # ==========================
-    st.subheader("📈 勝率＆試合数推移（日／月切替）")
+# ==========================
+# 勝率＆試合数推移
+# ==========================
+st.subheader("📈 勝率＆試合数推移（日／月切替）")
 
-    if len(view) > 0:
-        rate_df = view.copy()
-        rate_df["date_dt"] = pd.to_datetime(rate_df["date"], errors="coerce")
+if len(view) > 0:
+    rate_df = view.copy()
+    rate_df["date_dt"] = pd.to_datetime(rate_df["date"], errors="coerce")
 
-        freq = st.radio("集計単位", ["日ごと", "月ごと"], key="freq_chart")
-        if freq == "日ごと":
-            grouped = rate_df.groupby(rate_df["date_dt"].dt.date)["win_flag"].agg(試合数="count", 勝利数="sum")
-        else:
-            grouped = rate_df.groupby(rate_df["date_dt"].dt.to_period("M"))["win_flag"].agg(試合数="count", 勝利数="sum")
-            grouped.index = grouped.index.to_timestamp()
-
-        grouped["勝率(%)"] = (grouped["勝利数"] / grouped["試合数"] * 100).round(1)
-
-        # Plotly 2軸グラフ
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=grouped.index,
-                y=grouped["勝率(%)"],
-                mode="lines+markers",
-                name="勝率(%)",
-                line=dict(color="blue", width=2),
-                yaxis="y1"
-            )
-        )
-        fig.add_trace(
-            go.Bar(
-                x=grouped.index,
-                y=grouped["試合数"],
-                name="試合数",
-                opacity=0.3,
-                yaxis="y2",
-                marker_color="orange"
-            )
-        )
-
-        fig.update_layout(
-            title="勝率＆試合数推移",
-            yaxis=dict(
-                title="勝率(%)",
-                range=[0,100],
-                showgrid=True,
-                dtick=20,
-                gridcolor="lightgray"
-            ),
-            yaxis2=dict(
-                title="試合数",
-                overlaying="y",
-                side="right",
-                showgrid=False
-            ),
-            xaxis=dict(
-                title="日付",
-                showgrid=False
-            ),
-            template="plotly_white",
-            legend=dict(y=0.99, x=0.01)
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
+    freq = st.radio("集計単位", ["日ごと", "月ごと"], key="freq_chart")
+    if freq == "日ごと":
+        grouped = rate_df.groupby(rate_df["date_dt"].dt.date)["win_flag"].agg(試合数="count", 勝利数="sum")
     else:
-        st.info("絞り込み結果に該当する戦績がありません")
+        grouped = rate_df.groupby(rate_df["date_dt"].dt.to_period("M"))["win_flag"].agg(試合数="count", 勝利数="sum")
+        grouped.index = grouped.index.to_timestamp()
 
+    grouped["勝率(%)"] = (grouped["勝利数"] / grouped["試合数"] * 100).round(1)
+
+    # Plotly 2軸グラフ
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=grouped.index,
+            y=grouped["勝率(%)"],
+            mode="lines+markers",
+            name="勝率(%)",
+            line=dict(color="blue", width=2),
+            yaxis="y1"
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=grouped.index,
+            y=grouped["試合数"],
+            name="試合数",
+            opacity=0.3,
+            yaxis="y2",
+            marker_color="orange"
+        )
+    )
+
+    fig.update_layout(
+        title="勝率＆試合数推移",
+        yaxis=dict(
+            title="勝率(%)",
+            range=[0,100],
+            showgrid=True,
+            dtick=20,
+            gridcolor="lightgray"
+        ),
+        yaxis2=dict(
+            title="試合数",
+            overlaying="y",
+            side="right",
+            showgrid=False
+        ),
+        xaxis=dict(
+            title="日付",
+            showgrid=False
+        ),
+        template="plotly_white",
+        legend=dict(y=0.99, x=0.01)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 else:
-    st.info("戦績データがありません")
+    st.info("絞り込み結果に該当する戦績がありません")
 
 # -------------------------
 # 苦手キャラアラート
