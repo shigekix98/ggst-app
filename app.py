@@ -107,7 +107,7 @@ if len(df) > 0:
     selected_char = st.selectbox("キャラ選択", df["my_char"].unique())
     df_char = df[df["my_char"]==selected_char]
 
-        if period == "日別":
+    if period == "日別":
         df_rate = df.copy()
         df_rate["date_only"] = df_rate["date"].dt.date
         win_rate = df_rate.groupby("date_only")["win_flag"].mean() * 100
