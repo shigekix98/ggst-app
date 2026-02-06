@@ -219,3 +219,18 @@ if len(df)>0:
             )]
         df.to_csv(FILE,index=False)
         st.success("削除しました。再読み込みしてください")
+
+# ===== バックアップダウンロード =====
+st.subheader("💾 データバックアップ")
+
+if len(df) > 0:
+    csv = df.to_csv(index=False).encode("utf-8-sig")
+
+    st.download_button(
+        label="📥 戦績CSVをダウンロード",
+        data=csv,
+        file_name="ggst_backup.csv",
+        mime="text/csv"
+    )
+else:
+    st.info("まだデータがありません")
