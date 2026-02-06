@@ -226,6 +226,34 @@ if len(df) > 0:
     else:
         st.write("レーダー表示するには各キャラ3戦以上必要です")
 
+    # -------------------------
+    # 戦績リスト表示
+    # -------------------------
+    st.subheader("📋 戦績リスト")
+    
+    if len(df) > 0:
+    
+        view_df = df.copy()
+    
+        # 勝敗を見やすく
+        view_df["result"] = view_df["win_flag"].map(
+            {1:"勝ち", 0:"負け"}
+        )
+    
+        # 表示用整形
+        view_df = view_df[[
+            "date","my_char","opponent","result"
+        ]].sort_index(ascending=False)
+    
+        st.dataframe(
+            view_df,
+            use_container_width=True,
+            height=300
+        )
+    
+    else:
+        st.write("まだ戦績がありません")
+
 # -------------------------
 # 削除
 # -------------------------
