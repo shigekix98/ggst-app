@@ -108,68 +108,49 @@ if len(df) > 0:
     st.line_chart(cdf_group * 100, use_container_width=True)
 
 # -------------------------
-# 苦手キャラアラート
+# 苦手キャラアラート＋レーダー
 # -------------------------
 if len(df) > 0:
-    st.subheader("⚠️ 苦手キャラアラート")
+    st.subheader("⚠️ 苦手キャラ分析（テーブル＋レーダー）")
 
-    filter_char = st.selectbox("自キャラを選択", df["my_char"].unique(), key="alert_char")
+    # 自キャラ選択
+    filter_char = st.selectbox("自キャラを選択", df["my_char"].unique(), key="weak_char")
+
     filtered = df[df["my_char"]==filter_char]
 
-    alert = (
-        filtered.groupby("opponent")["win_flag"]
-        .agg(["count","mean"])
-        .query("count>=5")  # 試行回数5以上
-    )
-    alert["勝率%"] = (alert["mean"]*100).round(1)
-    alert = alert.sort_values("勝率%")
-    alert_low = alert[alert["勝率%"]<40]
+    # 相手キャラごとの集計
+    mu = filtered.groupby("opponent")["win_flag"].agg(["count","mean"])
+    mu = mu[mu["count"]>=5]  # 試行回数5以上
+    mu["勝率%"] = (mu["mean"]*100).round(1)
+    mu = mu.sort_values("勝率%")
 
-    if len(alert_low) > 0:
-        st.dataframe(alert_low[["count","勝率%"]])
+    # -----------------
+    # 苦手キャラアラート（テーブル）
+    # -----------------
+    alert = mu[mu["勝率%"]<40]
+    if len(alert) > 0:
+        st.write("▼ 勝率40％以下の相手キャラ")
+        st.dataframe(alert[["count","勝率%"]])
     else:
         st.info("苦手キャラは今のところありません")
 
-# -------------------------
-# 苦手キャラレーダー
-# -------------------------
-if len(df) > 0:
-    st.subheader("⚠️ 苦手キャラレーダー")
-
-    # 自キャラ選択
-    rc = st.selectbox("自キャラを選択", df["my_char"].unique(), key="weak_radar_char")
-
-    # 自キャラで絞り込み
-    rdf = df[df["my_char"]==rc]
-
-    # 集計
-    mu = rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu = mu[mu["count"] >= 5]  # 試行回数5以上
-    mu["勝率%"] = (mu["mean"]*100).round(1)
-    mu = mu.reset_index()
-
-    if len(mu) >= 3:  # レーダーチャートは3点以上必要
-        mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
-
+    # -----------------
+    # 苦手キャラレーダー
+    # -----------------
+    if len(mu) > 2:
         import plotly.express as px
-        fig = px.line_polar(
-            mu,
-            r="勝率%",
-            theta="opponent",
-            line_close=True,
-            template="plotly_dark"
-        )
+        mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else ("yellow" if x<60 else "lime"))
+
+        fig = px.line_polar(mu, r="勝率%", theta=mu.index, line_close=True, template="plotly_dark")
         fig.update_traces(fill="toself")
         fig.add_scatterpolar(
             r=mu["勝率%"],
-            theta=mu["opponent"],
+            theta=mu.index,
             mode="markers+text",
             marker=dict(size=10, color=mu["color"]),
-            text=[f"{v:.0f}%" for v in mu["勝率%"]]
+            text=[f"{x:.0f}%" for x in mu["勝率%"]]
         )
         st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("苦手キャラレーダーを表示するには、試行回数5以上の相手キャラが3人以上必要です。")
 
 # -------------------------
 # 戦績リスト
