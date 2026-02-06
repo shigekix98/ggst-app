@@ -138,23 +138,31 @@ else:
     st.info("絞り込み結果に該当する戦績がありません")
 
 # -------------------------
-# 日ごとの勝率グラフ
+# 勝率推移（日ごと / 月ごと、キャラ別フィルタ付き）
 # -------------------------
-st.subheader("📈 日ごとの勝率推移")
+st.subheader("📈 勝率推移（日／月）")
 
 if len(view) > 0:
-    # 日付を datetime に変換
-    view["date_dt"] = pd.to_datetime(view["date"], errors="coerce").dt.date
+    # キャラ別フィルタ
+    sel_char = st.selectbox("キャラ選択（全ての場合は全キャラ）", ["全て"] + list(view["my_char"].unique()), key="rate_char")
+    rate_df = view.copy()
+    if sel_char != "全て":
+        rate_df = rate_df[rate_df["my_char"] == sel_char]
 
-    # 日ごとに勝率計算
-    daily_stats = view.groupby("date_dt")["win_flag"].agg(
-        試合数="count",
-        勝利数="sum"
-    )
-    daily_stats["勝率(%)"] = (daily_stats["勝利数"] / daily_stats["試合数"] * 100).round(1)
+    # 日付列を datetime に変換
+    rate_df["date_dt"] = pd.to_datetime(rate_df["date"], errors="coerce")
 
-    # 勝率だけ抽出してグラフ化
-    st.line_chart(daily_stats["勝率(%)"])
+    # 日ごと／月ごと切り替え
+    freq = st.radio("集計単位", ["日ごと", "月ごと"])
+    if freq == "日ごと":
+        rate_df_grouped = rate_df.groupby(rate_df["date_dt"].dt.date)["win_flag"].agg(["count","sum"])
+    else:
+        rate_df_grouped = rate_df.groupby(rate_df["date_dt"].dt.to_period("M"))["win_flag"].agg(["count","sum"])
+        rate_df_grouped.index = rate_df_grouped.index.to_timestamp()  # plot用に timestamp に変換
+
+    rate_df_grouped["勝率(%)"] = (rate_df_grouped["sum"] / rate_df_grouped["count"] * 100).round(1)
+
+    st.line_chart(rate_df_grouped["勝率(%)"])
 else:
     st.info("絞り込み結果に該当する戦績がありません")
 
