@@ -101,11 +101,25 @@ if len(df) > 0:
     st.dataframe(char_stats, use_container_width=True)
 
     # 勝率推移
-    st.subheader("📈 勝率推移")
-    sel = st.selectbox("キャラ選択", df["my_char"].unique())
-    cdf = df[df["my_char"] == sel].copy()
-    cdf["rate"] = cdf["win_flag"].expanding().mean() * 100
-    st.line_chart(cdf["rate"])
+    st.subheader("📈 勝率推移（日別/月別）")
+    
+    period = st.radio("集計単位", ["日別", "月別"])
+    selected_char = st.selectbox("キャラ選択", df["my_char"].unique())
+    df_char = df[df["my_char"]==selected_char]
+
+        if period == "日別":
+        df_rate = df.copy()
+        df_rate["date_only"] = df_rate["date"].dt.date
+        win_rate = df_rate.groupby("date_only")["win_flag"].mean() * 100
+        win_rate.index = pd.to_datetime(win_rate.index)
+    else:
+        df_rate = df.copy()
+        df_rate["month"] = df_rate["date"].dt.to_period("M")
+        win_rate = df_rate.groupby("month")["win_flag"].mean() * 100
+        win_rate.index = win_rate.index.to_timestamp()
+    
+    # ラインチャート表示
+st.line_chart(win_rate, use_container_width=True)
 
     # 直近勝率
     st.subheader("直近パフォーマンス")
