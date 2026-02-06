@@ -54,19 +54,21 @@ opponent = st.selectbox("相手キャラ", characters)
 result = st.radio("結果", ["勝ち","負け"])
 memo = st.text_input("メモ")
 
+from datetime import datetime
+
 if st.button("記録する"):
-    # 日付を ISO 形式の文字列で保存
-    now_japan = pd.Timestamp.now(tz="Asia/Tokyo")
     new = pd.DataFrame([{
-        "date": now_japan.isoformat(),  # ← ここが重要
+        # ここで文字列に変換
+        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
     df = pd.concat([df, new], ignore_index=True)
-    df.to_csv(FILE, index=False)  # CSVに書き込み
+    df.to_csv(FILE, index=False)
     st.success("保存しました")
+
 
 # -------------------------
 # 総合勝率
