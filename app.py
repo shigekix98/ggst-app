@@ -31,9 +31,9 @@ if "df" not in st.session_state:
     if FILE.exists():
         df_load = pd.read_csv(FILE)
 
-        # ★ここで日付を安全に datetime に変換
+        # ★日付を datetime 型に統一、変換失敗は削除
         df_load["date"] = pd.to_datetime(df_load["date"], errors="coerce")
-        df_load = df_load.dropna(subset=["date"])  # 変換できなかった行は削除
+        df_load = df_load.dropna(subset=["date"])
 
         st.session_state.df = df_load
     else:
@@ -66,7 +66,7 @@ memo = st.text_input("メモ")
 if st.button("記録する"):
     now = pd.Timestamp.now(tz="Asia/Tokyo")
     new = pd.DataFrame([{
-        "date": now,  # ★datetime型で保存
+        "date": now,  # ★datetime型
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result=="勝ち" else 0,
@@ -88,6 +88,16 @@ if len(df) > 0:
     st.header("📊 分析")
     overall = df["win_flag"].mean()*100
     st.metric("総合勝率", f"{overall:.1f}%")
+
+    # 今日の勝率（安全）
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
+    today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
+    today = df[df["date"].dt.date == today_date]
+
+    if len(today) > 0:
+        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
+        st.write(f"今日の試合数：{len(today)}")
 
     # キャラ別勝率
     st.subheader("📊 キャラ別勝率（詳細）")
@@ -165,4 +175,3 @@ if len(df) > 0:
     )
 else:
     st.info("まだデータがありません")
-
