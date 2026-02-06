@@ -97,12 +97,23 @@ if len(df) > 0:
 # -------------------------
 if len(df) > 0:
     st.subheader("📈 勝率推移（キャラ別）")
+
+    # キャラ選択
     sel = st.selectbox("キャラ選択", df["my_char"].unique(), key="rate_char")
+
+    # 集計方法選択（日別／月別）
+    period = st.selectbox("集計単位", ["日別", "月別"])
+
     cdf = df[df["my_char"]==sel].copy()
-    cdf["date_safe"] = pd.to_datetime(cdf["date"], errors="coerce")
-    cdf = cdf.dropna(subset=["date_safe"])
-    cdf["rate"] = cdf["win_flag"].expanding().mean()*100
-    st.line_chart(cdf[["date_safe","rate"]].set_index("date_safe"))
+    cdf["date"] = pd.to_datetime(cdf["date"], errors="coerce")
+    cdf = cdf.dropna(subset=["date"])
+
+    if period == "日別":
+        cdf_group = cdf.groupby(cdf["date"].dt.date)["win_flag"].mean()
+    else:  # 月別
+        cdf_group = cdf.groupby(cdf["date"].dt.to_period("M"))["win_flag"].mean()
+
+    st.line_chart(cdf_group * 100, use_container_width=True)
 
 # -------------------------
 # 苦手キャラレーダー
