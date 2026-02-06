@@ -25,16 +25,16 @@ characters = [
 ]
 
 # -------------------------
-# df を session_state に保持
+# session_state に df を保持
 # -------------------------
 if "df" not in st.session_state:
     if FILE.exists():
-        df = pd.read_csv(FILE)
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df = df.dropna(subset=["date"])
+        df_load = pd.read_csv(FILE)
+        df_load["date"] = pd.to_datetime(df_load["date"], errors="coerce")
+        df_load = df_load.dropna(subset=["date"])
+        st.session_state.df = df_load
     else:
-        df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
-    st.session_state.df = df
+        st.session_state.df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
 
 df = st.session_state.df
 
@@ -69,10 +69,12 @@ if st.button("記録する"):
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    df = pd.concat([df, new], ignore_index=True)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"])
-    st.session_state.df = df  # session_state に保持
+
+    # session_state に追記
+    st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
+    df = st.session_state.df
+
+    # CSV 保存
     df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
     st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
 
