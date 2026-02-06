@@ -77,10 +77,10 @@ if st.button("記録する"):
     # CSV 保存
     st.session_state.df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
     
-    st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
+    # ★表示用 df を最新化
+    df = st.session_state.df
 
-    # ★ページを再実行して即時反映
-    st.experimental_rerun()
+    st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
 
 # -------------------------
 # 分析
