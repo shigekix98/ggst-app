@@ -2,10 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import os
+from pathlib import Path
 
 st.set_page_config(layout="wide")
 
-FILE = "ggst_log.csv"
+# -------------------------
+# CSVパス（絶対パスで安全）
+# -------------------------
+FILE = Path(__file__).parent / "ggst_log.csv"
 
 # -------------------------
 # キャラリスト
@@ -26,11 +30,9 @@ characters = [
 # -------------------------
 # データ読み込み
 # -------------------------
-if os.path.exists(FILE):
+if FILE.exists():
     df = pd.read_csv(FILE)
-    # date を datetime に変換
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    # 変換できなかった行は削除
     df = df.dropna(subset=["date"])
 else:
     df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
@@ -59,6 +61,7 @@ memo = st.text_input("メモ")
 
 if st.button("記録する"):
     now = pd.Timestamp.now(tz="Asia/Tokyo")
+
     new = pd.DataFrame([{
         "date": now,
         "my_char": my_char,
@@ -66,12 +69,16 @@ if st.button("記録する"):
         "win_flag": 1 if result == "勝ち" else 0,
         "memo": memo
     }])
+
     df = pd.concat([df, new], ignore_index=True)
-    # 確実に datetime 型に
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
     df = df.dropna(subset=["date"])
-    df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-    st.success(f"{my_char} vs {opponent} の戦績を {now.strftime('%Y-%m-%d %H:%M:%S')} に保存しました")
+
+    try:
+        df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+        st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
+    except Exception as e:
+        st.error(f"CSV 保存に失敗しました: {e}")
 
 # -------------------------
 # 分析
@@ -119,52 +126,10 @@ if len(df) > 0:
     N = st.slider("直近何戦？", 10, 100, 30)
     st.metric("直近勝率", f"{df.tail(N)['win_flag'].mean()*100:.1f}%")
 
-    # レーダーチャート
-    st.subheader("🕸️ キャラ相性")
-    rc = st.selectbox("自キャラ", df["my_char"].unique(), key="r")
-    rdf = df[df["my_char"] == rc]
-    mu = rdf.groupby("opponent")["win_flag"].agg(["count", "mean"])
-    mu = mu[mu["count"] >= 3]
-    mu["winrate"] = mu["mean"] * 100
-    mu = mu.reset_index()
-
-    if len(mu) > 2:
-        def col(x):
-            if x < 40: return "red"
-            elif x < 60: return "yellow"
-            else: return "lime"
-        mu["color"] = mu["winrate"].apply(col)
-
-        fig = px.line_polar(mu, r="winrate", theta="opponent", range_r=[0, 100], line_close=True, template="plotly_dark")
-        fig.update_traces(fill="toself")
-        fig.add_scatterpolar(
-            r=mu["winrate"],
-            theta=mu["opponent"],
-            mode="markers+text",
-            marker=dict(size=10, color=mu["color"]),
-            text=[f"{x:.0f}%" for x in mu["winrate"]]
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-    # 苦手ランキング
-    st.subheader("⚠️ 苦手キャラ")
-    mu2 = df.groupby("opponent")["win_flag"].agg(["count", "mean"])
-    mu2 = mu2[mu2["count"] >= 5]
-    mu2["winrate"] = mu2["mean"] * 100
-    st.dataframe(mu2.sort_values("winrate"))
-
-    # メモ振り返り
-    st.subheader("📝 メモ振り返り")
-    mc = st.selectbox("キャラ", df["my_char"].unique(), key="m")
-    md = df[(df["my_char"] == mc) & (df["memo"] != "")].tail(5)
-    for _, r in md.iterrows():
-        st.write(f"vs {r['opponent']}：{r['memo']}")
-
 # -------------------------
 # 戦績リスト管理
 # -------------------------
 st.header("📋 戦績管理")
-
 if len(df) > 0:
     df["result"] = df["win_flag"].map({1: "勝ち", 0: "負け"})
     c1, c2 = st.columns(2)
@@ -197,7 +162,6 @@ if len(df) > 0:
 # バックアップダウンロード
 # -------------------------
 st.subheader("💾 データバックアップ")
-
 if len(df) > 0:
     csv = df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
