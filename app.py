@@ -89,12 +89,6 @@ if len(df) > 0:
     overall = df["win_flag"].mean()*100
     st.metric("総合勝率", f"{overall:.1f}%")
 
-    # 今日の勝率（安全版）
-    today = df[df["date"].notna() & (df["date"].dt.date == pd.Timestamp.now(tz="Asia/Tokyo").date())]
-    if len(today) > 0:
-        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
-        st.write(f"今日の試合数：{len(today)}")
-
     # キャラ別勝率
     st.subheader("📊 キャラ別勝率（詳細）")
     char_stats = df.groupby("my_char")["win_flag"].agg(試合数="count", 勝ち数="sum")
