@@ -35,7 +35,7 @@ else:
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理＋分析（安全版）")
+st.title("🎮 GGST戦績管理＋分析")
 
 my_char = st.selectbox("自キャラ", characters)
 opponent = st.selectbox("相手キャラ", characters)
@@ -58,13 +58,8 @@ if st.button("記録する"):
 # 今日の勝率
 # -------------------------
 if len(df) > 0:
-    df_safe = df.copy()
-    df_safe["date"] = pd.to_datetime(df_safe["date"], errors="coerce")
-    df_safe = df_safe.dropna(subset=["date"])
-    
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
-    today = df_safe[df_safe["date"].apply(lambda x: x.date() == today_date)]
-    
+    today = df[df["date"].apply(lambda x: x.date()==today_date)]
     if len(today) > 0:
         st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
         st.write(f"今日の試合数：{len(today)}")
@@ -75,32 +70,17 @@ if len(df) > 0:
 # キャラ別勝率
 # -------------------------
 if len(df) > 0:
-    st.subheader("キャラ別勝率")
+    st.subheader("📊 キャラ別勝率")
     char_stats = df.groupby("my_char")["win_flag"].agg(試合数="count", 勝ち数="sum")
     char_stats["負け数"] = char_stats["試合数"] - char_stats["勝ち数"]
     char_stats["勝率%"] = (char_stats["勝ち数"]/char_stats["試合数"]*100).round(1)
     st.dataframe(char_stats, use_container_width=True)
 
 # -------------------------
-# 苦手キャラランキング（勝率40%未満は赤表示）
+# 直近 N 戦勝率
 # -------------------------
 if len(df) > 0:
-    st.subheader("⚠️ 苦手キャラ")
-    mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu = mu[mu["count"] >= 5]
-    mu["勝率%"] = (mu["mean"]*100).round(1)
-    
-    def color(val):
-        return ['color:red' if v<40 else '' for v in val]
-    
-    st.dataframe(mu.sort_values("勝率%"), use_container_width=True,
-                 style=pd.io.formats.style.Styler.apply(color, subset=["勝率%"]))
-
-# -------------------------
-# 直近 N 戦の勝率
-# -------------------------
-if len(df) > 0:
-    st.subheader("直近パフォーマンス")
+    st.subheader("📈 直近パフォーマンス")
     N = st.slider("直近何戦？", 5, 50, 10)
     st.metric("直近勝率", f"{df.tail(N)['win_flag'].mean()*100:.1f}%")
 
@@ -108,7 +88,7 @@ if len(df) > 0:
 # 勝率推移（キャラ別）
 # -------------------------
 if len(df) > 0:
-    st.subheader("勝率推移（キャラ別）")
+    st.subheader("📈 勝率推移（キャラ別）")
     sel = st.selectbox("キャラ選択", df["my_char"].unique(), key="rate_char")
     cdf = df[df["my_char"]==sel].copy()
     cdf["date_safe"] = pd.to_datetime(cdf["date"], errors="coerce")
@@ -117,30 +97,54 @@ if len(df) > 0:
     st.line_chart(cdf[["date_safe","rate"]].set_index("date_safe"))
 
 # -------------------------
-# キャラ相性レーダーチャート
+# キャラ相性レーダー
 # -------------------------
 if len(df) > 2:
-    st.subheader("🕸️ キャラ相性レーダーチャート")
+    st.subheader("🕸️ キャラ相性レーダー")
     rc = st.selectbox("自キャラ選択", df["my_char"].unique(), key="radar_char")
     rdf = df[df["my_char"]==rc]
     mu = rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
     mu = mu[mu["count"]>=3]
-    mu["winrate"] = mu["mean"]*100
+    mu["勝率%"] = mu["mean"]*100
     mu = mu.reset_index()
     if len(mu)>2:
-        mu["color"] = mu["winrate"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
-        fig = px.line_polar(mu, r="winrate", theta="opponent", range_r=[0,100], line_close=True, template="plotly_dark")
+        mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
+        fig = px.line_polar(mu, r="勝率%", theta="opponent", line_close=True, template="plotly_dark")
         fig.update_traces(fill="toself")
-        fig.add_scatterpolar(r=mu["winrate"], theta=mu["opponent"], mode="markers+text",
-                             marker=dict(size=10,color=mu["color"]),
-                             text=[f"{x:.0f}%" for x in mu["winrate"]])
+        fig.add_scatterpolar(
+            r=mu["勝率%"], theta=mu["opponent"], mode="markers+text",
+            marker=dict(size=10, color=mu["color"]),
+            text=[f"{v:.0f}%" for v in mu["勝率%"]]
+        )
         st.plotly_chart(fig, use_container_width=True)
+
+# -------------------------
+# 苦手キャラレーダー
+# -------------------------
+if len(df) > 0:
+    st.subheader("⚠️ 苦手キャラレーダー")
+    mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
+    mu = mu[mu["count"]>=5]
+    mu["勝率%"] = (mu["mean"]*100).round(1)
+    mu = mu.reset_index()
+    if len(mu)>=3:
+        mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
+        fig = px.line_polar(mu, r="勝率%", theta="opponent", line_close=True, template="plotly_dark")
+        fig.update_traces(fill="toself")
+        fig.add_scatterpolar(
+            r=mu["勝率%"], theta=mu["opponent"], mode="markers+text",
+            marker=dict(size=10, color=mu["color"]),
+            text=[f"{v:.0f}%" for v in mu["勝率%"]]
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("苦手キャラレーダーを表示するには、試行回数5以上の相手キャラが3人以上必要です。")
 
 # -------------------------
 # 戦績リスト
 # -------------------------
 if len(df) > 0:
-    st.subheader("戦績リスト")
+    st.subheader("📋 戦績リスト")
     st.dataframe(df[["date","my_char","opponent","win_flag","memo"]], use_container_width=True)
 
 # -------------------------
