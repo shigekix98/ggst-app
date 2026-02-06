@@ -22,54 +22,41 @@ characters = [
 ]
 
 # -------------------------
-# データ読み込み（初回のみ）
+# データ読み込み
 # -------------------------
-if "df" not in st.session_state:
-    if os.path.exists(FILE):
-        df = pd.read_csv(FILE)
-        # 日付を安全に datetime 型に変換
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df = df.dropna(subset=["date"])
-    else:
-        df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
-    st.session_state.df = df
-
-df = st.session_state.df
+if os.path.exists(FILE):
+    df = pd.read_csv(FILE)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
+else:
+    df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
 
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理（即反映版）")
+st.title("🎮 GGST戦績管理（安全版）")
 
 my_char = st.selectbox("自キャラ", characters)
 opponent = st.selectbox("相手キャラ", characters)
 result = st.radio("結果", ["勝ち", "負け"])
-memo = st.text_input("メモ", key="memo_input")
+memo = st.text_input("メモ")
 
 if st.button("記録する"):
-    now = pd.Timestamp.now(tz="Asia/Tokyo")
     new = pd.DataFrame([{
-        "date": now,
+        "date": pd.Timestamp.now(tz="Asia/Tokyo"),
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    # session_state に追加
-    st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
-    # CSV 保存（バックアップ）
-    st.session_state.df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-    # 入力欄クリア
-    st.session_state.memo_input = ""
-    # 画面再描画
-    st.experimental_rerun()
+    df = pd.concat([df, new], ignore_index=True)
+    df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    st.success("保存しました。画面を更新すると反映されます。")
 
 # -------------------------
 # 今日の勝率
 # -------------------------
 if len(df) > 0:
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"])
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
     today = df[df["date"].dt.date == today_date]
     if len(today) > 0:
@@ -89,11 +76,31 @@ if len(df) > 0:
     st.dataframe(char_stats, use_container_width=True)
 
 # -------------------------
+# 苦手キャラランキング
+# -------------------------
+if len(df) > 0:
+    st.subheader("⚠️ 苦手キャラ")
+    mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
+    mu = mu[mu["count"] >= 5]  # 試行回数5回以上
+    mu["勝率%"] = (mu["mean"]*100).round(1)
+    st.dataframe(mu.sort_values("勝率%"))
+
+# -------------------------
 # 戦績リスト
 # -------------------------
 if len(df) > 0:
     st.subheader("戦績リスト")
     st.dataframe(df[["date","my_char","opponent","win_flag","memo"]], use_container_width=True)
+
+# -------------------------
+# メモ振り返り
+# -------------------------
+if len(df) > 0:
+    st.subheader("📝 メモ振り返り")
+    mc = st.selectbox("キャラ選択", df["my_char"].unique(), key="memo_char")
+    md = df[(df["my_char"]==mc) & (df["memo"]!="")].tail(5)
+    for _, r in md.iterrows():
+        st.write(f"vs {r['opponent']}：{r['memo']}")
 
 # -------------------------
 # CSVバックアップ
@@ -107,3 +114,4 @@ if len(df) > 0:
         file_name="ggst_backup.csv",
         mime="text/csv"
     )
+
