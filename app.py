@@ -170,22 +170,6 @@ if len(df) > 0:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("苦手キャラレーダーを表示するには、試行回数5以上の相手キャラが3人以上必要です。")
-        
-# -------------------------
-# 自キャラ vs 相手キャラ勝率表
-# -------------------------
-if len(df) > 0:
-    st.subheader("🗂️ 自キャラ別 vs 相手キャラ別勝率")
-
-    pivot = df.pivot_table(
-        index="my_char",
-        columns="opponent",
-        values="win_flag",
-        aggfunc=["mean","count"]
-    )
-
-    winrate = (pivot["mean"]*100).round(1)
-    st.dataframe(winrate.style.background_gradient(cmap="RdYlGn", axis=None))
 
 # -------------------------
 # 戦績リスト
