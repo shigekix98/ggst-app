@@ -1,12 +1,12 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pathlib import Path
+import os
 
 st.set_page_config(layout="wide")
 
-# CSVパス
-FILE = Path(__file__).parent / "ggst_log.csv"
+# CSVパス（Streamlit Cloud でも安全）
+FILE = os.path.join(os.getcwd(), "ggst_log.csv")
 
 # -------------------------
 # キャラリスト
@@ -28,13 +28,11 @@ characters = [
 # session_state に df を保持
 # -------------------------
 if "df" not in st.session_state:
-    if FILE.exists():
+    if os.path.exists(FILE):
         df_load = pd.read_csv(FILE)
-
         # ★日付を datetime 型に統一、変換失敗は削除
         df_load["date"] = pd.to_datetime(df_load["date"], errors="coerce")
         df_load = df_load.dropna(subset=["date"])
-
         st.session_state.df = df_load
     else:
         st.session_state.df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
@@ -66,7 +64,7 @@ memo = st.text_input("メモ")
 if st.button("記録する"):
     now = pd.Timestamp.now(tz="Asia/Tokyo")
     new = pd.DataFrame([{
-        "date": now,  # ★datetime型
+        "date": now,
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result=="勝ち" else 0,
