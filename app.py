@@ -34,18 +34,48 @@ else:
     )
 
 # -------------------------
-# 入力
+# 戦績入力（自キャラ固定対応）
 # -------------------------
-st.title("🎮 GGST戦績管理")
-
 st.subheader("➕ 戦績入力")
 
-my_char = st.selectbox("自キャラ", characters)
+# -----------------
+# 自キャラ固定モード
+# -----------------
+if "fixed_char" not in st.session_state:
+    st.session_state.fixed_char = None
+
+fix_mode = st.checkbox("自キャラ固定モード")
+
+if fix_mode:
+    st.session_state.fixed_char = st.selectbox(
+        "固定する自キャラ",
+        characters
+    )
+    my_char = st.session_state.fixed_char
+    st.write(f"現在の自キャラ：**{my_char}**")
+else:
+    my_char = st.selectbox("自キャラ", characters)
+
+# -----------------
+# 相手キャラ
+# -----------------
 opponent = st.selectbox("相手キャラ", characters)
+
+# -----------------
+# 結果
+# -----------------
 result = st.radio("結果", ["勝ち","負け"])
+
+# -----------------
+# メモ
+# -----------------
 memo = st.text_input("メモ")
 
+# -----------------
+# 保存
+# -----------------
 if st.button("記録する"):
+
     new = pd.DataFrame([{
         "date": pd.Timestamp.now(),
         "my_char": my_char,
@@ -53,8 +83,10 @@ if st.button("記録する"):
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
+
     df = pd.concat([df,new],ignore_index=True)
     df.to_csv(FILE,index=False)
+
     st.success("保存しました")
 
 # -------------------------
