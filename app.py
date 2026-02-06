@@ -44,7 +44,7 @@ st.title("🎮 GGST戦績管理（即反映版）")
 my_char = st.selectbox("自キャラ", characters)
 opponent = st.selectbox("相手キャラ", characters)
 result = st.radio("結果", ["勝ち", "負け"])
-memo = st.text_input("メモ")
+memo = st.text_input("メモ", key="memo_input")
 
 if st.button("記録する"):
     now = pd.Timestamp.now(tz="Asia/Tokyo")
@@ -55,26 +55,21 @@ if st.button("記録する"):
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    # session_state に追加（即反映）
+    # session_state に追加
     st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
-    df = st.session_state.df
-    # CSV に保存（バックアップ用）
-    df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-    st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
+    # CSV 保存（バックアップ）
+    st.session_state.df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    # 入力欄クリア
+    st.session_state.memo_input = ""
+    # 画面再描画
+    st.experimental_rerun()
 
 # -------------------------
-# 日付列を安全に datetime 型に変換
+# 今日の勝率
 # -------------------------
 if len(df) > 0:
-    if df["date"].dtype != "<M8[ns]":
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df = df.dropna(subset=["date"])
-        st.session_state.df = df
-
-# -------------------------
-# 今日の勝率（安全版）
-# -------------------------
-if len(df) > 0:
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
     today = df[df["date"].dt.date == today_date]
     if len(today) > 0:
