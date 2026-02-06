@@ -58,9 +58,12 @@ result = st.radio("結果", ["勝ち", "負け"])
 memo = st.text_input("メモ")
 
 if st.button("記録する"):
+    # ここでタイムスタンプを作る
+    now = pd.Timestamp.now(tz="Asia/Tokyo")
+
     # 新しい戦績作成
     new = pd.DataFrame([{
-        "date": pd.Timestamp.now(tz="Asia/Tokyo"),
+        "date": now,
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result == "勝ち" else 0,
@@ -70,12 +73,13 @@ if st.button("記録する"):
     # df に追加
     df = pd.concat([df, new], ignore_index=True)
 
-    # 戦績追加直後に datetime 型に変換
+    # ★ 戦績追加直後に datetime 型に変換（安全策）
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     # CSV 保存
     df.to_csv(FILE, index=False)
-    st.success("保存しました")
+
+    st.success(f"{my_char} vs {opponent} の戦績を {now.strftime('%Y-%m-%d %H:%M:%S')} に保存しました")
 
 # -------------------------
 # 分析
