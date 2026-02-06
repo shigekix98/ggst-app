@@ -7,15 +7,15 @@ st.set_page_config(layout="wide")
 FILE = "ggst_log.csv"
 
 # -------------------------
-# キャラリスト
+# キャラリスト（エルフェルトを先頭に）
 # -------------------------
 characters = [
-    "ソル","カイ","メイ","ミリア","チップ",
+    "エルフェルト", "ソル","カイ","メイ","ミリア","チップ",
     "ポチョムキン","ファウスト","アクセル",
     "ラムレザル","レオ","名残雪",
     "ジオヴァーナ","ハッピーケイオス",
     "ブリジット","シン","ベッドマン？",
-    "飛鳥=R#","ジョニー","エルフェルト",
+    "飛鳥=R#","ジョニー",
     "ザトー","闇慈","イノ","ゴールドルイス",
     "ジャック・オー","梅喧","テスタメント",
     "A.B.A","スレイヤー","ディズィー",
@@ -33,7 +33,7 @@ else:
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理（削除機能付き）")
+st.title("🎮 GGST戦績管理（勝率・試合数表示付き）")
 st.subheader("➕ 戦績入力")
 
 my_char = st.selectbox("自キャラ", characters)
@@ -55,12 +55,37 @@ if st.button("記録する"):
     st.success("保存しました")
 
 # -------------------------
-# 戦績リスト表示＆削除
+# 戦績リスト表示＆削除（絞り込み付き）
 # -------------------------
 st.header("📋 戦績リスト")
 
 if len(df) > 0:
+    # 絞り込みセレクト
+    col1, col2 = st.columns(2)
+    with col1:
+        filter_my = st.selectbox("自キャラ絞り込み", ["全て"] + list(df["my_char"].unique()))
+    with col2:
+        filter_op = st.selectbox("相手キャラ絞り込み", ["全て"] + list(df["opponent"].unique()))
+
+    # フィルタ適用
     view = df.copy()
+    if filter_my != "全て":
+        view = view[view["my_char"] == filter_my]
+    if filter_op != "全て":
+        view = view[view["opponent"] == filter_op]
+
+    # 試合数・勝利数・勝率計算
+    if len(view) > 0:
+        total_games = len(view)
+        total_wins = view["win_flag"].sum()
+        win_rate = total_wins / total_games * 100
+        st.metric("試合数", total_games)
+        st.metric("勝利数", total_wins)
+        st.metric("勝率", f"{win_rate:.1f}%")
+    else:
+        st.info("絞り込み結果に該当する戦績がありません")
+
+    # 表示用
     view["result"] = view["win_flag"].map({1:"勝ち", 0:"負け"})
     view["削除"] = False  # チェック用列
 
@@ -84,5 +109,3 @@ if len(df) > 0:
 
 else:
     st.info("まだ戦績がありません")
-
-
