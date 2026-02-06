@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import os
 from datetime import datetime
 
@@ -149,12 +150,70 @@ if len(df) > 0:
         st.success("特に対策が必要なキャラはいません 👍")
 
     # -------------------------
-    # 勝率推移
+    # 勝率推移（自キャラ別）
     # -------------------------
-    st.subheader("📈 勝率推移")
+    st.subheader("📈 勝率推移（キャラ別）")
+    
+    # キャラ選択
+    selected_char = st.selectbox(
+        "勝率推移を見るキャラ",
+        df["my_char"].unique()
+    )
+    
+    # そのキャラだけ抽出
+    char_df = df[df["my_char"] == selected_char].copy()
+    
+    if len(char_df) > 0:
+        char_df["cum_rate"] = (
+            char_df["win_flag"]
+            .expanding()
+            .mean()*100
+        )
+    
+        st.line_chart(char_df["cum_rate"])
+    else:
+        st.write("データがありません")
+    
+    # -------------------------
+    # キャラ別レーダーチャート
+    # -------------------------
+    st.subheader("🕸️ キャラ相性レーダー")
+    
+    # 自キャラ選択
+    radar_char = st.selectbox(
+        "レーダーを見る自キャラ",
+        df["my_char"].unique(),
+        key="radar"
+    )
+    
+    radar_df = df[df["my_char"] == radar_char]
+    
+    mu = (
+        radar_df.groupby("opponent")["win_flag"]
+        .agg(["count","mean"])
+        .reset_index()
+    )
+    
+    mu = mu[mu["count"] >= 3]  # 最低3戦以上
+    mu["winrate"] = mu["mean"] * 100
+    
+    if len(mu) > 2:
+    
+        fig = px.line_polar(
+            mu,
+            r="winrate",
+            theta="opponent",
+            line_close=True,
+            range_r=[0,100]
+        )
+    
+        fig.update_traces(fill="toself")
+    
+        st.plotly_chart(fig, use_container_width=True)
+    
+    else:
+        st.write("レーダー表示するには各キャラ3戦以上必要です")
 
-    df["cum_rate"]=df["win_flag"].expanding().mean()*100
-    st.line_chart(df["cum_rate"])
 
 # -------------------------
 # 削除機能
