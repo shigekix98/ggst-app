@@ -28,12 +28,12 @@ characters = [
 # -------------------------
 if os.path.exists(FILE):
     df = pd.read_csv(FILE)
+    # date を datetime に変換
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    # 変換できなかった行は削除
+    df = df.dropna(subset=["date"])
 else:
     df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
-
-# datetime化
-if len(df) > 0:
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
 # -------------------------
 # 戦績入力
@@ -58,26 +58,21 @@ result = st.radio("結果", ["勝ち", "負け"])
 memo = st.text_input("メモ")
 
 if st.button("記録する"):
-    # タイムスタンプを変数に作成
     now = pd.Timestamp.now(tz="Asia/Tokyo")
-
-    # 新しい戦績を DataFrame に作成
     new = pd.DataFrame([{
-        "date": now,           # ← 必ずここで datetime を入れる
+        "date": now,
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result == "勝ち" else 0,
         "memo": memo
     }])
-
-    # df に追加
     df = pd.concat([df, new], ignore_index=True)
-
-    # CSV 保存
+    # 確実に datetime 型に
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+    df = df.dropna(subset=["date"])
     df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-
     st.success(f"{my_char} vs {opponent} の戦績を {now.strftime('%Y-%m-%d %H:%M:%S')} に保存しました")
-    
+
 # -------------------------
 # 分析
 # -------------------------
