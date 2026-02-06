@@ -109,3 +109,37 @@ if len(df) > 0:
 
 else:
     st.info("まだ戦績がありません")
+
+# -------------------------
+# 苦手キャラアラート
+# -------------------------
+st.header("⚠️ 苦手キャラアラート")
+
+if len(df) > 0:
+    # 自キャラ選択フィルタ
+    filter_self = st.selectbox("自キャラを選択", ["全て"] + list(df["my_char"].unique()), key="alert_self")
+    alert_df = df.copy()
+    if filter_self != "全て":
+        alert_df = alert_df[alert_df["my_char"] == filter_self]
+
+    # 集計
+    stats = (
+        alert_df.groupby("opponent")["win_flag"]
+        .agg(["count","mean"])
+        .reset_index()
+    )
+    stats = stats[stats["count"] >= 5]  # 試合数5戦以上
+    stats["winrate"] = stats["mean"] * 100
+    stats = stats.sort_values("winrate")
+
+    # 苦手キャラの抽出
+    weak_chars = stats[stats["winrate"] < 40]
+
+    if len(weak_chars) > 0:
+        for _, r in weak_chars.iterrows():
+            st.warning(f"自キャラ: {filter_self if filter_self!='全て' else '全て'} → 相手キャラ: {r['opponent']} 勝率 {r['winrate']:.1f}% （{int(r['count'])}戦）")
+    else:
+        st.success("苦手キャラは見つかりません")
+else:
+    st.info("まだ戦績がありません")
+
