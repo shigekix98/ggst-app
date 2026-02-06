@@ -177,7 +177,7 @@ if len(view) > 0:
             name="試合数",
             opacity=0.1,
             yaxis="y2",
-            marker_color="orange"
+            marker_color="white"
         )
     )
 
