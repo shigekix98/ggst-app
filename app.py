@@ -5,7 +5,7 @@ import os
 
 st.set_page_config(layout="wide")
 
-# CSVパス（Streamlit Cloud でも安全）
+# CSVパス（Cloudでも安全）
 FILE = os.path.join(os.getcwd(), "ggst_log.csv")
 
 # -------------------------
@@ -30,7 +30,6 @@ characters = [
 if "df" not in st.session_state:
     if os.path.exists(FILE):
         df_load = pd.read_csv(FILE)
-        # ★日付を datetime 型に統一、変換失敗は削除
         df_load["date"] = pd.to_datetime(df_load["date"], errors="coerce")
         df_load = df_load.dropna(subset=["date"])
         st.session_state.df = df_load
@@ -76,8 +75,8 @@ if st.button("記録する"):
 
     # CSV 保存
     st.session_state.df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-    
-    # ★表示用 df を最新化
+
+    # 表示用 df を最新化
     df = st.session_state.df
 
     st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
@@ -90,12 +89,9 @@ if len(df) > 0:
     overall = df["win_flag"].mean()*100
     st.metric("総合勝率", f"{overall:.1f}%")
 
-    # 今日の勝率（安全）
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df = df.dropna(subset=["date"])
+    # 今日の勝率
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
     today = df[df["date"].dt.date == today_date]
-
     if len(today) > 0:
         st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
         st.write(f"今日の試合数：{len(today)}")
@@ -160,7 +156,7 @@ if len(df) > 0:
             )]
         st.session_state.df = df
         df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
-        st.success("削除しました。再読み込みしてください")
+        st.success("削除しました。再読み込み不要です")
 
 # -------------------------
 # バックアップダウンロード
@@ -176,3 +172,4 @@ if len(df) > 0:
     )
 else:
     st.info("まだデータがありません")
+
