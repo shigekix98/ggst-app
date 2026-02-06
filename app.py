@@ -22,11 +22,12 @@ characters = [
 ]
 
 # -------------------------
-# データ読み込み（最初だけ）
+# データ読み込み（初回のみ）
 # -------------------------
 if "df" not in st.session_state:
     if os.path.exists(FILE):
         df = pd.read_csv(FILE)
+        # 日付を安全に datetime 型に変換
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df.dropna(subset=["date"])
     else:
@@ -54,12 +55,21 @@ if st.button("記録する"):
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    # session_state に追加 → 即反映
+    # session_state に追加（即反映）
     st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
     df = st.session_state.df
-    # CSV 保存（バックアップ）
+    # CSV に保存（バックアップ用）
     df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
     st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
+
+# -------------------------
+# 日付列を安全に datetime 型に変換
+# -------------------------
+if len(df) > 0:
+    if df["date"].dtype != "<M8[ns]":
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"])
+        st.session_state.df = df
 
 # -------------------------
 # 今日の勝率（安全版）
