@@ -63,28 +63,6 @@ if len(df) > 0:
     st.metric("総合勝率", f"{overall:.1f}%")
 
 # -------------------------
-# 今日の勝率
-# -------------------------
-if len(df) > 0:
-    today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
-    today = df[df["date"].apply(lambda x: x.date()==today_date)]
-    if len(today) > 0:
-        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
-        st.write(f"今日の試合数：{len(today)}")
-    else:
-        st.info("今日の試合はまだありません")
-
-# -------------------------
-# キャラ別勝率
-# -------------------------
-if len(df) > 0:
-    st.subheader("📊 キャラ別勝率")
-    char_stats = df.groupby("my_char")["win_flag"].agg(試合数="count", 勝ち数="sum")
-    char_stats["負け数"] = char_stats["試合数"] - char_stats["勝ち数"]
-    char_stats["勝率%"] = (char_stats["勝ち数"]/char_stats["試合数"]*100).round(1)
-    st.dataframe(char_stats, use_container_width=True)
-
-# -------------------------
 # 勝率推移（日別／月別）
 # -------------------------
 if len(df) > 0:
@@ -106,6 +84,16 @@ if len(df) > 0:
         cdf_group = cdf.groupby(cdf["date"].dt.to_period("M"))["win_flag"].mean()
 
     st.line_chart(cdf_group * 100, use_container_width=True)
+
+# -------------------------
+# キャラ別勝率
+# -------------------------
+if len(df) > 0:
+    st.subheader("📊 キャラ別勝率")
+    char_stats = df.groupby("my_char")["win_flag"].agg(試合数="count", 勝ち数="sum")
+    char_stats["負け数"] = char_stats["試合数"] - char_stats["勝ち数"]
+    char_stats["勝率%"] = (char_stats["勝ち数"]/char_stats["試合数"]*100).round(1)
+    st.dataframe(char_stats, use_container_width=True)
 
 # -------------------------
 # 苦手キャラレーダー（自キャラフィルタ付き）
