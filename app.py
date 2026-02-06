@@ -184,40 +184,63 @@ if len(df)>0:
         })
     )
 
-    # ---------------------
-    # 戦績リスト
-    # ---------------------
+    # -------------------------
+    # 戦績リスト管理（タップ削除）
+    # -------------------------
     st.subheader("📋 戦績リスト管理")
-
-    df["result"]=df["win_flag"].map({1:"勝ち",0:"負け"})
-
-    fchar=st.selectbox(
-        "絞り込み",
-        ["全て"]+list(df["my_char"].unique())
+    
+    df["result"] = df["win_flag"].map({1:"勝ち",0:"負け"})
+    
+    # 絞り込み
+    fchar = st.selectbox(
+        "自キャラで絞り込み",
+        ["全て"] + list(df["my_char"].unique())
     )
-
-    view=df.copy()
-    if fchar!="全て":
-        view=view[view["my_char"]==fchar]
-
-    view=view.reset_index()
-
-    show=view[[
-        "index","date","my_char",
-        "opponent","result","memo"
-    ]].sort_values("index",ascending=False)
-
-    st.dataframe(show,height=300)
-
-    # 削除
-    did=st.number_input(
-        "削除index",
-        min_value=0,
-        max_value=int(df.index.max()),
-        step=1
+    
+    view = df.copy()
+    
+    if fchar != "全て":
+        view = view[view["my_char"] == fchar]
+    
+    view = view.reset_index(drop=True)
+    
+    # 表示用
+    show = view[[
+        "date","my_char","opponent","result","memo"
+    ]].copy()
+    
+    # 削除チェック列追加
+    show["削除"] = False
+    
+    edited = st.data_editor(
+        show,
+        use_container_width=True,
+        height=300,
+        column_config={
+            "削除": st.column_config.CheckboxColumn(
+                "削除",
+                help="削除したい行にチェック"
+            )
+        }
     )
-
-    if st.button("削除実行"):
-        df=df.drop(did)
-        df.to_csv(FILE,index=False)
-        st.warning("削除しました。再読み込みしてください。")
+    
+    # -----------------
+    # 削除処理
+    # -----------------
+    delete_rows = edited[edited["削除"] == True]
+    
+    if len(delete_rows) > 0:
+        if st.button("チェックした記録を削除"):
+            
+            # 元データと照合して削除
+            for _, row in delete_rows.iterrows():
+                df = df[
+                    ~(
+                        (df["date"] == row["date"]) &
+                        (df["my_char"] == row["my_char"]) &
+                        (df["opponent"] == row["opponent"])
+                    )
+                ]
+    
+            df.to_csv(FILE, index=False)
+            st.success("削除しました！再読み込みしてください")
