@@ -27,24 +27,21 @@ characters = [
 # -------------------------
 if os.path.exists(FILE):
     df = pd.read_csv(FILE)
+    if len(df) > 0:
+        df["date"] = pd.to_datetime(df["date"], errors='coerce')
 else:
     df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
 
-# datetime化
-if len(df) > 0:
-    df["date"] = pd.to_datetime(df["date"], errors='coerce')
-
 # -------------------------
-# 入力
+# 戦績入力
 # -------------------------
 st.title("🎮 GGST戦績管理ツール")
 st.subheader("➕ 戦績入力")
 
 if "fixed_char" not in st.session_state:
-    st.session_state.fixed_char=None
+    st.session_state.fixed_char = None
 
 fix = st.checkbox("自キャラ固定モード")
-
 if fix:
     st.session_state.fixed_char = st.selectbox("固定キャラ", characters)
     my_char = st.session_state.fixed_char
@@ -57,15 +54,16 @@ result = st.radio("結果", ["勝ち","負け"])
 memo = st.text_input("メモ")
 
 if st.button("記録する"):
+    now = pd.Timestamp.now(tz="Asia/Tokyo")
     new = pd.DataFrame([{
-        "date": pd.Timestamp.now(tz="Asia/Tokyo"),
+        "date": now.isoformat(),   # ← 日付を文字列で保存
         "my_char": my_char,
         "opponent": opponent,
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    df = pd.concat([df,new], ignore_index=True)
-    df.to_csv(FILE,index=False)
+    df = pd.concat([df, new], ignore_index=True)
+    df.to_csv(FILE, index=False)
     st.success("保存しました。反映は次回リロード時に行われます。")
 
 # -------------------------
@@ -75,6 +73,16 @@ if len(df) > 0:
     st.header("📊 分析")
     overall = df["win_flag"].mean()*100
     st.metric("総合勝率", f"{overall:.1f}%")
+
+# -------------------------
+# 今日の勝率
+# -------------------------
+if len(df) > 0:
+    today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
+    today = df[df["date"].notna() & (df["date"].dt.date == today_date)]
+    if len(today) > 0:
+        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
+        st.write(f"今日の試合数：{len(today)}")
 
 # -------------------------
 # 勝率推移（日別／月別 + キャラ別切替）
@@ -100,16 +108,6 @@ if len(df) > 0:
     st.line_chart(rate_df["win_rate"])
 
 # -------------------------
-# 今日の勝率
-# -------------------------
-if len(df) > 0:
-    today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
-    today = df[df["date"].dt.date == today_date]
-    if len(today) > 0:
-        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
-        st.write(f"今日の試合数：{len(today)}")
-
-# -------------------------
 # キャラ別勝率
 # -------------------------
 if len(df) > 0:
@@ -131,7 +129,6 @@ if len(df) > 0:
     mu["勝率%"] = (mu["mean"]*100).round(1)
     mu = mu.sort_values("勝率%")
 
-    # テーブル
     alert = mu[mu["勝率%"]<40]
     if len(alert) > 0:
         st.write("▼ 勝率40％以下の相手キャラ")
@@ -139,7 +136,6 @@ if len(df) > 0:
     else:
         st.info("苦手キャラは今のところありません")
 
-    # レーダー
     if len(mu) > 2:
         mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else ("yellow" if x<60 else "lime"))
         fig = px.line_polar(mu, r="勝率%", theta=mu.index, line_close=True, template="plotly_dark")
@@ -154,7 +150,7 @@ if len(df) > 0:
         st.plotly_chart(fig, use_container_width=True)
 
 # -------------------------
-# メモ分析（自キャラ＋相手キャラフィルタ付き）
+# メモ分析
 # -------------------------
 if len(df) > 0:
     st.subheader("📝 メモ分析")
@@ -208,4 +204,3 @@ if len(df) > 0:
     st.download_button(label="📥 戦績CSVをダウンロード", data=csv, file_name="ggst_backup.csv", mime="text/csv")
 else:
     st.info("まだデータがありません")
-
