@@ -58,8 +58,13 @@ if st.button("記録する"):
 # 今日の勝率
 # -------------------------
 if len(df) > 0:
+    df_safe = df.copy()
+    df_safe["date"] = pd.to_datetime(df_safe["date"], errors="coerce")
+    df_safe = df_safe.dropna(subset=["date"])
+    
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
-    today = df[df["date"].dt.date == today_date]
+    today = df_safe[df_safe["date"].apply(lambda x: x.date() == today_date)]
+    
     if len(today) > 0:
         st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
         st.write(f"今日の試合数：{len(today)}")
@@ -82,11 +87,13 @@ if len(df) > 0:
 if len(df) > 0:
     st.subheader("⚠️ 苦手キャラ")
     mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu = mu[mu["count"] >= 5]  # 試行回数5回以上
+    mu = mu[mu["count"] >= 5]
     mu["勝率%"] = (mu["mean"]*100).round(1)
+    
     def color(val):
         return ['color:red' if v<40 else '' for v in val]
-    st.dataframe(mu.sort_values("勝率%"), use_container_width=True, 
+    
+    st.dataframe(mu.sort_values("勝率%"), use_container_width=True,
                  style=pd.io.formats.style.Styler.apply(color, subset=["勝率%"]))
 
 # -------------------------
@@ -104,8 +111,10 @@ if len(df) > 0:
     st.subheader("勝率推移（キャラ別）")
     sel = st.selectbox("キャラ選択", df["my_char"].unique(), key="rate_char")
     cdf = df[df["my_char"]==sel].copy()
+    cdf["date_safe"] = pd.to_datetime(cdf["date"], errors="coerce")
+    cdf = cdf.dropna(subset=["date_safe"])
     cdf["rate"] = cdf["win_flag"].expanding().mean()*100
-    st.line_chart(cdf[["date","rate"]].set_index("date"))
+    st.line_chart(cdf[["date_safe","rate"]].set_index("date_safe"))
 
 # -------------------------
 # キャラ相性レーダーチャート
