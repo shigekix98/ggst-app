@@ -97,42 +97,39 @@ if len(df) > 0:
     st.line_chart(cdf[["date_safe","rate"]].set_index("date_safe"))
 
 # -------------------------
-# キャラ相性レーダー
-# -------------------------
-if len(df) > 2:
-    st.subheader("🕸️ キャラ相性レーダー")
-    rc = st.selectbox("自キャラ選択", df["my_char"].unique(), key="radar_char")
-    rdf = df[df["my_char"]==rc]
-    mu = rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu = mu[mu["count"]>=3]
-    mu["勝率%"] = mu["mean"]*100
-    mu = mu.reset_index()
-    if len(mu)>2:
-        mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
-        fig = px.line_polar(mu, r="勝率%", theta="opponent", line_close=True, template="plotly_dark")
-        fig.update_traces(fill="toself")
-        fig.add_scatterpolar(
-            r=mu["勝率%"], theta=mu["opponent"], mode="markers+text",
-            marker=dict(size=10, color=mu["color"]),
-            text=[f"{v:.0f}%" for v in mu["勝率%"]]
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-# -------------------------
 # 苦手キャラレーダー
 # -------------------------
 if len(df) > 0:
     st.subheader("⚠️ 苦手キャラレーダー")
-    mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu = mu[mu["count"]>=5]
+
+    # 自キャラ選択
+    rc = st.selectbox("自キャラを選択", df["my_char"].unique(), key="weak_radar_char")
+
+    # 自キャラで絞り込み
+    rdf = df[df["my_char"]==rc]
+
+    # 集計
+    mu = rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
+    mu = mu[mu["count"] >= 5]  # 試行回数5以上
     mu["勝率%"] = (mu["mean"]*100).round(1)
     mu = mu.reset_index()
-    if len(mu)>=3:
+
+    if len(mu) >= 3:  # レーダーチャートは3点以上必要
         mu["color"] = mu["勝率%"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
-        fig = px.line_polar(mu, r="勝率%", theta="opponent", line_close=True, template="plotly_dark")
+
+        import plotly.express as px
+        fig = px.line_polar(
+            mu,
+            r="勝率%",
+            theta="opponent",
+            line_close=True,
+            template="plotly_dark"
+        )
         fig.update_traces(fill="toself")
         fig.add_scatterpolar(
-            r=mu["勝率%"], theta=mu["opponent"], mode="markers+text",
+            r=mu["勝率%"],
+            theta=mu["opponent"],
+            mode="markers+text",
             marker=dict(size=10, color=mu["color"]),
             text=[f"{v:.0f}%" for v in mu["勝率%"]]
         )
