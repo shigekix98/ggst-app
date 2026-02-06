@@ -6,12 +6,8 @@ from datetime import datetime
 # -------------------------
 # 基本設定
 # -------------------------
-st.set_page_config(
-    page_title="GGST戦績管理",
-    layout="centered"
-)
-
-st.title("🎮 GGST戦績管理アプリ")
+st.set_page_config(page_title="GGST戦績分析ツール", layout="centered")
+st.title("🎮 GGST戦績分析ツール")
 
 DATA_FILE = "ggst_log.csv"
 
@@ -32,7 +28,7 @@ char_list = [
 ]
 
 # -------------------------
-# セッション状態（自キャラ固定）
+# セッション状態
 # -------------------------
 if "fixed_char" not in st.session_state:
     st.session_state.fixed_char = None
@@ -48,146 +44,137 @@ else:
     )
 
 # -------------------------
-# 自キャラ固定設定
+# 自キャラ固定
 # -------------------------
 st.header("⚙️ 自キャラ設定")
 
-colA, colB = st.columns(2)
+fix = st.checkbox("自キャラ固定モード")
 
-with colA:
-    fixed_toggle = st.checkbox("自キャラを固定する")
-
-with colB:
-    selected_char = st.selectbox("使用キャラ", char_list)
-
-if fixed_toggle:
-    st.session_state.fixed_char = selected_char
-    st.success(f"✅ {selected_char}で固定中")
+if fix:
+    st.session_state.fixed_char = st.selectbox("使用キャラ", char_list)
+    st.success(f"{st.session_state.fixed_char}で固定中")
 
 # -------------------------
 # 入力UI
 # -------------------------
 st.header("📌 戦績入力")
 
-# 自キャラ自動設定
 if st.session_state.fixed_char:
     my_char = st.session_state.fixed_char
-    st.write(f"🎯 自キャラ：**{my_char}（固定中）**")
+    st.write(f"🎯 自キャラ：{my_char}")
 else:
-    my_char = st.selectbox("自分のキャラ", char_list)
+    my_char = st.selectbox("自キャラ", char_list)
 
 opponent = st.selectbox("相手キャラ", char_list)
-
 result = st.radio("結果", ["Win","Lose"], horizontal=True)
+memo = st.text_input("メモ")
 
-memo = st.text_input("メモ（任意）")
-
-if st.button("✅ 記録する", use_container_width=True):
-    new_row = {
+if st.button("記録する"):
+    new = {
         "date": datetime.now(),
         "my_char": my_char,
         "opponent": opponent,
         "result": result,
         "memo": memo
     }
-    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-    df.to_csv(DATA_FILE, index=False)
-    st.success("保存しました！")
+    df = pd.concat([df,pd.DataFrame([new])])
+    df.to_csv(DATA_FILE,index=False)
+    st.success("保存完了")
+    st.rerun()
 
 # -------------------------
 # 分析
 # -------------------------
 if len(df) > 0:
 
+    df["win_flag"] = (df["result"]=="Win").astype(int)
+    df["date"] = pd.to_datetime(df["date"])
+
     st.header("📊 戦績分析")
 
-    df["win_flag"] = df["result"].apply(lambda x: 1 if x=="Win" else 0)
-
     # 総合勝率
-    winrate = df["win_flag"].mean()*100
-    st.metric("総合勝率", f"{winrate:.1f}%")
+    overall = df["win_flag"].mean()*100
+    st.metric("総合勝率", f"{overall:.1f}%")
 
-    # 相手別勝率
-    char_stats = (
-        df.groupby("opponent")["win_flag"]
+    # -------------------------
+    # 直近成績
+    # -------------------------
+    st.subheader("📈 直近パフォーマンス")
+
+    N = st.slider("直近何戦を見る？",10,100,30)
+    recent = df.tail(N)
+    recent_rate = recent["win_flag"].mean()*100
+
+    st.metric(f"直近{N}戦勝率",f"{recent_rate:.1f}%")
+
+    if recent_rate > overall:
+        st.success("調子が上向きです 👍")
+    else:
+        st.warning("少し調子が落ちています")
+
+    # -------------------------
+    # マッチアップ分析
+    # -------------------------
+    st.subheader("🎯 マッチアップ別勝率")
+
+    mu = (
+        df.groupby(["my_char","opponent"])["win_flag"]
         .agg(["count","mean"])
         .reset_index()
     )
-    char_stats["winrate"] = char_stats["mean"]*100
 
-    st.subheader("📊 相手キャラ別勝率")
-    st.dataframe(
-        char_stats[["opponent","count","winrate"]]
-        .sort_values("winrate")
-    )
+    mu["winrate"] = mu["mean"]*100
 
-    # 苦手キャラ
-    st.subheader("⚠️ 苦手キャラ")
-    weak = char_stats[char_stats["count"]>=5]
-    if len(weak)>0:
-        worst = weak.sort_values("winrate").head(3)
-        for _, r in worst.iterrows():
-            st.write(
-                f"🔥 {r['opponent']} "
-                f"勝率 {r['winrate']:.1f}% "
-                f"({int(r['count'])}戦)"
+    st.dataframe(mu.sort_values("winrate"))
+
+    # -------------------------
+    # 🔥 対策すべきキャラ通知
+    # -------------------------
+    st.subheader("🚨 対策すべきキャラ")
+
+    danger = mu[
+        (mu["count"] >= 5) &
+        (mu["winrate"] < 40)
+    ].sort_values("winrate")
+
+    if len(danger) > 0:
+        for _,r in danger.iterrows():
+            st.error(
+                f"⚠️ {r['my_char']} vs {r['opponent']} "
+                f"勝率{r['winrate']:.1f}% "
+                f"（{int(r['count'])}戦）\n"
+                f"👉 このキャラは要対策！"
             )
+    else:
+        st.success("特に対策が必要なキャラはいません 👍")
 
+    # -------------------------
     # 勝率推移
+    # -------------------------
     st.subheader("📈 勝率推移")
-    df["cum_winrate"] = df["win_flag"].expanding().mean()*100
-    st.line_chart(df["cum_winrate"])
 
-    # キャラ別グラフ
-    st.subheader("📊 キャラ別勝率グラフ")
-    chart_data = char_stats.set_index("opponent")["winrate"]
-    st.bar_chart(chart_data)
+    df["cum_rate"]=df["win_flag"].expanding().mean()*100
+    st.line_chart(df["cum_rate"])
 
 # -------------------------
-# マッチアップ分析（自キャラ×相手）
+# 削除機能
 # -------------------------
-st.subheader("🎯 マッチアップ別勝率")
+st.header("🗑️ 記録削除")
 
-matchup_stats = (
-    df.groupby(["my_char","opponent"])["win_flag"]
-    .agg(["count","mean"])
-    .reset_index()
-)
+if len(df)>0:
 
-matchup_stats["winrate"] = matchup_stats["mean"] * 100
-
-st.dataframe(
-    matchup_stats[["my_char","opponent","count","winrate"]]
-    .sort_values("winrate")
-)
-
-# -------------------------
-# データ表示＆削除
-# -------------------------
-st.header("📄 記録一覧")
-
-if len(df) > 0:
-
-    # 表示用インデックス振り直し
-    df_display = df.reset_index()
-
-    selected_index = st.selectbox(
-        "削除する記録を選択",
-        df_display.index,
+    idx = st.selectbox(
+        "削除する試合",
+        df.index,
         format_func=lambda x:
-            f"{df_display.loc[x,'date']} | "
-            f"{df_display.loc[x,'my_char']} vs "
-            f"{df_display.loc[x,'opponent']} | "
-            f"{df_display.loc[x,'result']}"
+        f"{df.loc[x,'date']} | "
+        f"{df.loc[x,'my_char']} vs {df.loc[x,'opponent']} | "
+        f"{df.loc[x,'result']}"
     )
 
-    if st.button("🗑️ 選択した記録を削除", use_container_width=True):
-        df = df.drop(selected_index)
-        df.to_csv(DATA_FILE, index=False)
-        st.warning("削除しました！")
+    if st.button("削除"):
+        df = df.drop(idx)
+        df.to_csv(DATA_FILE,index=False)
+        st.warning("削除しました")
         st.rerun()
 
-    st.dataframe(df.tail(50))
-
-else:
-    st.write("まだ記録がありません")
