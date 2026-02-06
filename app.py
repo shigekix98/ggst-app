@@ -36,7 +36,7 @@ if len(df) > 0:
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
 # -------------------------
-# 入力
+# 戦績入力
 # -------------------------
 st.title("🎮 GGST戦績管理ツール")
 st.subheader("➕ 戦績入力")
@@ -70,7 +70,7 @@ if st.button("記録する"):
     # df に追加
     df = pd.concat([df, new], ignore_index=True)
 
-    # ★ 戦績追加直後に datetime 型に変換
+    # 戦績追加直後に datetime 型に変換
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
     # CSV 保存
@@ -100,26 +100,23 @@ if len(df) > 0:
     char_stats["勝率%"] = (char_stats["勝ち数"] / char_stats["試合数"] * 100).round(1)
     st.dataframe(char_stats, use_container_width=True)
 
-    # 勝率推移
-    st.subheader("📈 勝率推移（日別/月別）")
-    
-    period = st.radio("集計単位", ["日別", "月別"])
-    selected_char = st.selectbox("キャラ選択", df["my_char"].unique())
-    df_char = df[df["my_char"]==selected_char]
+    # 勝率推移（日別／月別）
+    st.subheader("📈 勝率推移（日別／月別）")
+    period = st.radio("集計単位", ["日別", "月別"], horizontal=True)
+    sel_char = st.selectbox("キャラ選択（推移）", df["my_char"].unique())
+
+    df_rate = df[df["my_char"] == sel_char].copy()
 
     if period == "日別":
-        df_rate = df.copy()
         df_rate["date_only"] = df_rate["date"].dt.date
         win_rate = df_rate.groupby("date_only")["win_flag"].mean() * 100
         win_rate.index = pd.to_datetime(win_rate.index)
     else:
-        df_rate = df.copy()
         df_rate["month"] = df_rate["date"].dt.to_period("M")
         win_rate = df_rate.groupby("month")["win_flag"].mean() * 100
         win_rate.index = win_rate.index.to_timestamp()
-    
-    # ラインチャート表示
-st.line_chart(win_rate, use_container_width=True)
+
+    st.line_chart(win_rate, use_container_width=True)
 
     # 直近勝率
     st.subheader("直近パフォーマンス")
