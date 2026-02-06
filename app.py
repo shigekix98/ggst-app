@@ -108,6 +108,29 @@ if len(df) > 0:
     st.line_chart(cdf_group * 100, use_container_width=True)
 
 # -------------------------
+# 苦手キャラアラート
+# -------------------------
+if len(df) > 0:
+    st.subheader("⚠️ 苦手キャラアラート")
+
+    filter_char = st.selectbox("自キャラを選択", df["my_char"].unique(), key="alert_char")
+    filtered = df[df["my_char"]==filter_char]
+
+    alert = (
+        filtered.groupby("opponent")["win_flag"]
+        .agg(["count","mean"])
+        .query("count>=5")  # 試行回数5以上
+    )
+    alert["勝率%"] = (alert["mean"]*100).round(1)
+    alert = alert.sort_values("勝率%")
+    alert_low = alert[alert["勝率%"]<40]
+
+    if len(alert_low) > 0:
+        st.dataframe(alert_low[["count","勝率%"]])
+    else:
+        st.info("苦手キャラは今のところありません")
+
+# -------------------------
 # 苦手キャラレーダー
 # -------------------------
 if len(df) > 0:
@@ -147,6 +170,22 @@ if len(df) > 0:
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("苦手キャラレーダーを表示するには、試行回数5以上の相手キャラが3人以上必要です。")
+        
+# -------------------------
+# 自キャラ vs 相手キャラ勝率表
+# -------------------------
+if len(df) > 0:
+    st.subheader("🗂️ 自キャラ別 vs 相手キャラ別勝率")
+
+    pivot = df.pivot_table(
+        index="my_char",
+        columns="opponent",
+        values="win_flag",
+        aggfunc=["mean","count"]
+    )
+
+    winrate = (pivot["mean"]*100).round(1)
+    st.dataframe(winrate.style.background_gradient(cmap="RdYlGn", axis=None))
 
 # -------------------------
 # 戦績リスト
