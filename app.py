@@ -76,12 +76,12 @@ if len(df) > 0:
 
     # 試合数・勝利数・勝率計算
     if len(view) > 0:
-        total_games = len(view)
-        total_wins = view["win_flag"].sum()
-        win_rate = total_wins / total_games * 100
-        st.metric("試合数", total_games)
-        st.metric("勝利数", total_wins)
-        st.metric("勝率", f"{win_rate:.1f}%")
+        summary = pd.DataFrame({
+            "試合数": [len(view)],
+            "勝利数": [view["win_flag"].sum()],
+            "勝率(%)": [round(view["win_flag"].mean()*100, 1)]
+        })
+        st.table(summary)
     else:
         st.info("絞り込み結果に該当する戦績がありません")
 
