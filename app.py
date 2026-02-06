@@ -205,11 +205,28 @@ if len(df) > 0:
 # メモ振り返り
 # -------------------------
 if len(df) > 0:
-    st.subheader("📝 メモ振り返り")
-    mc = st.selectbox("キャラ選択", df["my_char"].unique(), key="memo_char")
-    md = df[(df["my_char"]==mc) & (df["memo"]!="")].tail(5)
-    for _, r in md.iterrows():
-        st.write(f"vs {r['opponent']}：{r['memo']}")
+    st.subheader("📝 メモ分析")
+
+    # 自キャラ選択
+    memo_my = st.selectbox("自キャラを選択", df["my_char"].unique(), key="memo_my_char")
+
+    # 相手キャラ選択（全て含めるオプション付き）
+    opponents = ["全て"] + list(df["opponent"].unique())
+    memo_opponent = st.selectbox("相手キャラで絞り込み", opponents, key="memo_opponent_char")
+
+    # フィルタリング
+    memos = df[(df["my_char"]==memo_my) & (df["memo"]!="")]
+    if memo_opponent != "全て":
+        memos = memos[memos["opponent"]==memo_opponent]
+
+    memos = memos.sort_values("date", ascending=False)
+
+    # 表示
+    if len(memos) > 0:
+        for _, row in memos.head(5).iterrows():
+            st.write(f"vs {row['opponent']} ({row['date'].strftime('%Y-%m-%d')}): {row['memo']}")
+    else:
+        st.info("まだメモはありません")
 
 # -------------------------
 # CSVバックアップ
