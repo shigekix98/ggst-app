@@ -165,8 +165,8 @@ if len(view) > 0:
             y=grouped["勝率(%)"],
             mode="lines+markers",
             name="勝率(%)",
-            line=dict(color="navy", width=3),
-            marker=dict(size=6, color="navy"),
+            line=dict(color="red", width=3),
+            marker=dict(size=6, color="red"),
             yaxis="y1"
         )
     )
