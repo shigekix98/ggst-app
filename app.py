@@ -75,29 +75,6 @@ if len(df) > 0:
     st.metric("総合勝率", f"{overall:.1f}%")
 
 # -------------------------
-# 勝率推移（日別／月別 + キャラ別切替）
-# -------------------------
-if len(df) > 0:
-    st.subheader("📈 勝率推移")
-    chars = ["全体"] + list(df["my_char"].unique())
-    sel_char = st.selectbox("キャラ選択", chars, key="rate_char")
-    period = st.radio("表示単位", ["日別","月別"], horizontal=True)
-
-    plot_df = df.copy()
-    if sel_char != "全体":
-        plot_df = plot_df[plot_df["my_char"] == sel_char]
-
-    plot_df["date"] = pd.to_datetime(plot_df["date"], errors='coerce')
-    if period == "日別":
-        plot_df["period"] = plot_df["date"].dt.date
-    else:
-        plot_df["period"] = plot_df["date"].dt.to_period("M").astype(str)
-
-    rate_df = plot_df.groupby("period")["win_flag"].agg(["count","mean"]).rename(columns={"mean":"win_rate"})
-    rate_df["win_rate"] = (rate_df["win_rate"]*100).round(1)
-    st.line_chart(rate_df["win_rate"])
-
-# -------------------------
 # キャラ別勝率
 # -------------------------
 if len(df) > 0:
