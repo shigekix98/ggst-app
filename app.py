@@ -33,7 +33,7 @@ else:
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理（シンプル版）")
+st.title("🎮 GGST戦績管理（削除機能付き）")
 st.subheader("➕ 戦績入力")
 
 my_char = st.selectbox("自キャラ", characters)
@@ -55,13 +55,34 @@ if st.button("記録する"):
     st.success("保存しました")
 
 # -------------------------
-# 戦績リスト表示
+# 戦績リスト表示＆削除
 # -------------------------
 st.header("📋 戦績リスト")
+
 if len(df) > 0:
     view = df.copy()
     view["result"] = view["win_flag"].map({1:"勝ち", 0:"負け"})
-    st.dataframe(view[["date","my_char","opponent","result","memo"]])
+    view["削除"] = False  # チェック用列
+
+    edited = st.data_editor(
+        view[["date","my_char","opponent","result","memo","削除"]],
+        use_container_width=True,
+        height=300
+    )
+
+    # 削除処理
+    del_rows = edited[edited["削除"] == True]
+    if len(del_rows) > 0 and st.button("選択行を削除"):
+        for _, r in del_rows.iterrows():
+            df = df[~(
+                (df["date"] == r["date"]) &
+                (df["my_char"] == r["my_char"]) &
+                (df["opponent"] == r["opponent"])
+            )]
+        df.to_csv(FILE, index=False)
+        st.success("削除しました。再読み込みしてください")
+
 else:
     st.info("まだ戦績がありません")
+
 
