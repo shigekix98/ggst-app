@@ -138,33 +138,48 @@ else:
     st.info("絞り込み結果に該当する戦績がありません")
 
 # -------------------------
-# 勝率推移（日ごと / 月ごと、キャラ別フィルタ付き）
+# 勝率＆試合数推移（戦績リストフィルタ連動）
 # -------------------------
-st.subheader("📈 勝率推移（日／月）")
+st.subheader("📈 勝率＆試合数推移（日／月）")
 
 if len(view) > 0:
-    # キャラ別フィルタ
-    sel_char = st.selectbox("キャラ選択（全ての場合は全キャラ）", ["全て"] + list(view["my_char"].unique()), key="rate_char")
+    # view はすでに戦績リストのフィルタが適用されたデータ
     rate_df = view.copy()
-    if sel_char != "全て":
-        rate_df = rate_df[rate_df["my_char"] == sel_char]
 
     # 日付列を datetime に変換
     rate_df["date_dt"] = pd.to_datetime(rate_df["date"], errors="coerce")
 
     # 日ごと／月ごと切り替え
-    freq = st.radio("集計単位", ["日ごと", "月ごと"])
+    freq = st.radio("集計単位", ["日ごと", "月ごと"], key="freq_view")
     if freq == "日ごと":
-        rate_df_grouped = rate_df.groupby(rate_df["date_dt"].dt.date)["win_flag"].agg(["count","sum"])
+        grouped = rate_df.groupby(rate_df["date_dt"].dt.date)["win_flag"].agg(試合数="count", 勝利数="sum")
     else:
-        rate_df_grouped = rate_df.groupby(rate_df["date_dt"].dt.to_period("M"))["win_flag"].agg(["count","sum"])
-        rate_df_grouped.index = rate_df_grouped.index.to_timestamp()  # plot用に timestamp に変換
+        grouped = rate_df.groupby(rate_df["date_dt"].dt.to_period("M"))["win_flag"].agg(試合数="count", 勝利数="sum")
+        grouped.index = grouped.index.to_timestamp()  # plot用に timestamp に変換
 
-    rate_df_grouped["勝率(%)"] = (rate_df_grouped["sum"] / rate_df_grouped["count"] * 100).round(1)
+    # 勝率計算
+    grouped["勝率(%)"] = (grouped["勝利数"] / grouped["試合数"] * 100).round(1)
 
-    st.line_chart(rate_df_grouped["勝率(%)"])
+    # Plotlyで2軸グラフ作成
+    fig = px.line(grouped, x=grouped.index, y="勝率(%)", title="勝率＆試合数推移", labels={"y":"勝率(%)", "x":"日付"})
+    fig.add_bar(x=grouped.index, y=grouped["試合数"], name="試合数", opacity=0.3, yaxis="y2")
+
+    # 2軸設定
+    fig.update_layout(
+        yaxis2=dict(
+            title="試合数",
+            overlaying="y",
+            side="right"
+        ),
+        legend=dict(y=0.99, x=0.01),
+        template="plotly_white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 else:
     st.info("絞り込み結果に該当する戦績がありません")
+
 
 # -------------------------
 # 苦手キャラアラート
