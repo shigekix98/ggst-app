@@ -175,7 +175,7 @@ if len(view) > 0:
             x=grouped.index,
             y=grouped["試合数"],
             name="試合数",
-            opacity=0.3,
+            opacity=0.1,
             yaxis="y2",
             marker_color="orange"
         )
