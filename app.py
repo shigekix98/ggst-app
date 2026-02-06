@@ -22,12 +22,11 @@ characters = [
 ]
 
 # -------------------------
-# データ読み込み
+# データ読み込み（最初だけ）
 # -------------------------
 if "df" not in st.session_state:
     if os.path.exists(FILE):
         df = pd.read_csv(FILE)
-        # 日付を安全に datetime に変換
         df["date"] = pd.to_datetime(df["date"], errors="coerce")
         df = df.dropna(subset=["date"])
     else:
@@ -39,7 +38,7 @@ df = st.session_state.df
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理（安全シンプル版）")
+st.title("🎮 GGST戦績管理（即反映版）")
 
 my_char = st.selectbox("自キャラ", characters)
 opponent = st.selectbox("相手キャラ", characters)
@@ -55,10 +54,10 @@ if st.button("記録する"):
         "win_flag": 1 if result=="勝ち" else 0,
         "memo": memo
     }])
-    # session_state に追加
+    # session_state に追加 → 即反映
     st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
     df = st.session_state.df
-    # CSV 保存
+    # CSV 保存（バックアップ）
     df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
     st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
 
@@ -66,17 +65,13 @@ if st.button("記録する"):
 # 今日の勝率（安全版）
 # -------------------------
 if len(df) > 0:
-    # 日付が datetime 型か確認
-    if df["date"].dtype != "<M8[ns]":
-        df["date"] = pd.to_datetime(df["date"], errors="coerce")
-        df = df.dropna(subset=["date"])
-        st.session_state.df = df
-
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
     today = df[df["date"].dt.date == today_date]
     if len(today) > 0:
         st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
         st.write(f"今日の試合数：{len(today)}")
+    else:
+        st.info("今日の試合はまだありません")
 
 # -------------------------
 # キャラ別勝率
@@ -94,3 +89,16 @@ if len(df) > 0:
 if len(df) > 0:
     st.subheader("戦績リスト")
     st.dataframe(df[["date","my_char","opponent","win_flag","memo"]], use_container_width=True)
+
+# -------------------------
+# CSVバックアップ
+# -------------------------
+st.subheader("💾 CSVバックアップ")
+if len(df) > 0:
+    csv = df.to_csv(index=False).encode("utf-8-sig")
+    st.download_button(
+        label="📥 戦績CSVをダウンロード",
+        data=csv,
+        file_name="ggst_backup.csv",
+        mime="text/csv"
+    )
