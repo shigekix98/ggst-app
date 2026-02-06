@@ -55,6 +55,14 @@ if st.button("記録する"):
     st.success("保存しました。画面を更新すると反映されます。")
 
 # -------------------------
+# 総合勝率
+# -------------------------
+if len(df) > 0:
+    st.subheader("📊 総合勝率")
+    overall = df["win_flag"].mean() * 100
+    st.metric("総合勝率", f"{overall:.1f}%")
+
+# -------------------------
 # 今日の勝率
 # -------------------------
 if len(df) > 0:
@@ -141,8 +149,31 @@ if len(df) > 0:
 # 戦績リスト
 # -------------------------
 if len(df) > 0:
-    st.subheader("📋 戦績リスト")
-    st.dataframe(df[["date","my_char","opponent","win_flag","memo"]], use_container_width=True)
+    st.subheader("📋 戦績リスト管理")
+
+    # 表示用にコピー
+    view = df.copy()
+    view["result"] = view["win_flag"].map({1: "勝ち", 0: "負け"})
+    view["削除"] = False  # 削除チェック列
+
+    # データエディタで表示
+    edited = st.data_editor(
+        view[["date","my_char","opponent","result","memo","削除"]],
+        use_container_width=True,
+        height=300
+    )
+
+    # 削除処理
+    del_rows = edited[edited["削除"]==True]
+    if len(del_rows) > 0 and st.button("チェック削除"):
+        for _, r in del_rows.iterrows():
+            df = df[~(
+                (df["date"]==r["date"]) &
+                (df["my_char"]==r["my_char"]) &
+                (df["opponent"]==r["opponent"])
+            )]
+        df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+        st.success("削除しました。画面を更新すると反映されます。")
 
 # -------------------------
 # メモ振り返り
