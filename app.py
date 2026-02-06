@@ -90,10 +90,31 @@ if len(df)>0:
         st.write(f"今日の試合数：{len(today)}")
 
     # キャラ別勝率
-    st.subheader("キャラ別勝率")
-    mu=df.groupby("my_char")["win_flag"].agg(["count","mean"])
-    mu["勝率%"]=mu["mean"]*100
-    st.dataframe(mu)
+    st.subheader("📊 キャラ別勝率（詳細）")
+    
+    char_stats = (
+        df.groupby("my_char")["win_flag"]
+        .agg(
+            試合数="count",
+            勝ち数="sum"
+        )
+    )
+    
+    char_stats["負け数"] = (
+        char_stats["試合数"]
+        - char_stats["勝ち数"]
+    )
+    
+    char_stats["勝率%"] = (
+        char_stats["勝ち数"]
+        / char_stats["試合数"]
+        * 100
+    ).round(1)
+    
+    st.dataframe(
+        char_stats,
+        use_container_width=True
+    )
 
     # 勝率推移
     st.subheader("📈 勝率推移")
