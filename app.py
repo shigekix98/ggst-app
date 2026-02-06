@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 import os
 
 st.set_page_config(layout="wide")
@@ -34,7 +35,7 @@ else:
 # -------------------------
 # 戦績入力
 # -------------------------
-st.title("🎮 GGST戦績管理（安全版）")
+st.title("🎮 GGST戦績管理＋分析（安全版）")
 
 my_char = st.selectbox("自キャラ", characters)
 opponent = st.selectbox("相手キャラ", characters)
@@ -76,14 +77,55 @@ if len(df) > 0:
     st.dataframe(char_stats, use_container_width=True)
 
 # -------------------------
-# 苦手キャラランキング
+# 苦手キャラランキング（勝率40%未満は赤表示）
 # -------------------------
 if len(df) > 0:
     st.subheader("⚠️ 苦手キャラ")
     mu = df.groupby("opponent")["win_flag"].agg(["count","mean"])
     mu = mu[mu["count"] >= 5]  # 試行回数5回以上
     mu["勝率%"] = (mu["mean"]*100).round(1)
-    st.dataframe(mu.sort_values("勝率%"))
+    def color(val):
+        return ['color:red' if v<40 else '' for v in val]
+    st.dataframe(mu.sort_values("勝率%"), use_container_width=True, 
+                 style=pd.io.formats.style.Styler.apply(color, subset=["勝率%"]))
+
+# -------------------------
+# 直近 N 戦の勝率
+# -------------------------
+if len(df) > 0:
+    st.subheader("直近パフォーマンス")
+    N = st.slider("直近何戦？", 5, 50, 10)
+    st.metric("直近勝率", f"{df.tail(N)['win_flag'].mean()*100:.1f}%")
+
+# -------------------------
+# 勝率推移（キャラ別）
+# -------------------------
+if len(df) > 0:
+    st.subheader("勝率推移（キャラ別）")
+    sel = st.selectbox("キャラ選択", df["my_char"].unique(), key="rate_char")
+    cdf = df[df["my_char"]==sel].copy()
+    cdf["rate"] = cdf["win_flag"].expanding().mean()*100
+    st.line_chart(cdf[["date","rate"]].set_index("date"))
+
+# -------------------------
+# キャラ相性レーダーチャート
+# -------------------------
+if len(df) > 2:
+    st.subheader("🕸️ キャラ相性レーダーチャート")
+    rc = st.selectbox("自キャラ選択", df["my_char"].unique(), key="radar_char")
+    rdf = df[df["my_char"]==rc]
+    mu = rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
+    mu = mu[mu["count"]>=3]
+    mu["winrate"] = mu["mean"]*100
+    mu = mu.reset_index()
+    if len(mu)>2:
+        mu["color"] = mu["winrate"].apply(lambda x: "red" if x<40 else "yellow" if x<60 else "lime")
+        fig = px.line_polar(mu, r="winrate", theta="opponent", range_r=[0,100], line_close=True, template="plotly_dark")
+        fig.update_traces(fill="toself")
+        fig.add_scatterpolar(r=mu["winrate"], theta=mu["opponent"], mode="markers+text",
+                             marker=dict(size=10,color=mu["color"]),
+                             text=[f"{x:.0f}%" for x in mu["winrate"]])
+        st.plotly_chart(fig, use_container_width=True)
 
 # -------------------------
 # 戦績リスト
@@ -105,8 +147,8 @@ if len(df) > 0:
 # -------------------------
 # CSVバックアップ
 # -------------------------
-st.subheader("💾 CSVバックアップ")
 if len(df) > 0:
+    st.subheader("💾 CSVバックアップ")
     csv = df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         label="📥 戦績CSVをダウンロード",
@@ -114,4 +156,3 @@ if len(df) > 0:
         file_name="ggst_backup.csv",
         mime="text/csv"
     )
-
