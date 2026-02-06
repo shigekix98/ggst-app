@@ -32,151 +32,125 @@ else:
     df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
 
 # datetime化
-if len(df)>0:
-    df["date"]=pd.to_datetime(df["date"])
+if len(df) > 0:
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
 # -------------------------
 # 入力
 # -------------------------
 st.title("🎮 GGST戦績管理ツール")
-
 st.subheader("➕ 戦績入力")
 
 if "fixed_char" not in st.session_state:
-    st.session_state.fixed_char=None
+    st.session_state.fixed_char = None
 
-fix=st.checkbox("自キャラ固定モード")
+fix = st.checkbox("自キャラ固定モード")
 
 if fix:
-    st.session_state.fixed_char=st.selectbox("固定キャラ",characters)
-    my_char=st.session_state.fixed_char
+    st.session_state.fixed_char = st.selectbox("固定キャラ", characters)
+    my_char = st.session_state.fixed_char
     st.write(f"使用キャラ：**{my_char}**")
 else:
-    my_char=st.selectbox("自キャラ",characters)
+    my_char = st.selectbox("自キャラ", characters)
 
-opponent=st.selectbox("相手キャラ",characters)
-result=st.radio("結果",["勝ち","負け"])
-memo=st.text_input("メモ")
+opponent = st.selectbox("相手キャラ", characters)
+result = st.radio("結果", ["勝ち", "負け"])
+memo = st.text_input("メモ")
 
 if st.button("記録する"):
-    new=pd.DataFrame([{
-        "date":pd.Timestamp.now(tz="Asia/Tokyo"),
-        "my_char":my_char,
-        "opponent":opponent,
-        "win_flag":1 if result=="勝ち" else 0,
-        "memo":memo
+    # 新しい戦績作成
+    new = pd.DataFrame([{
+        "date": pd.Timestamp.now(tz="Asia/Tokyo"),
+        "my_char": my_char,
+        "opponent": opponent,
+        "win_flag": 1 if result == "勝ち" else 0,
+        "memo": memo
     }])
-    df=pd.concat([df,new],ignore_index=True)
-    df.to_csv(FILE,index=False)
+
+    # df に追加
+    df = pd.concat([df, new], ignore_index=True)
+
+    # ★ 戦績追加直後に datetime 型に変換
+    df["date"] = pd.to_datetime(df["date"], errors="coerce")
+
+    # CSV 保存
+    df.to_csv(FILE, index=False)
     st.success("保存しました")
 
 # -------------------------
 # 分析
 # -------------------------
-if len(df)>0:
-
+if len(df) > 0:
     st.header("📊 分析")
 
-    overall=df["win_flag"].mean()*100
-    st.metric("総合勝率",f"{overall:.1f}%")
+    # 総合勝率
+    overall = df["win_flag"].mean() * 100
+    st.metric("総合勝率", f"{overall:.1f}%")
 
     # 今日の勝率
-    today=df[df["date"].dt.date==
-             pd.Timestamp.now(tz="Asia/Tokyo").date()]
-
-    if len(today)>0:
-        st.metric("今日の勝率",
-                  f"{today['win_flag'].mean()*100:.1f}%")
+    today = df[df["date"].dt.date == pd.Timestamp.now(tz="Asia/Tokyo").date()]
+    if len(today) > 0:
+        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
         st.write(f"今日の試合数：{len(today)}")
 
     # キャラ別勝率
     st.subheader("📊 キャラ別勝率（詳細）")
-    
-    char_stats = (
-        df.groupby("my_char")["win_flag"]
-        .agg(
-            試合数="count",
-            勝ち数="sum"
-        )
-    )
-    
-    char_stats["負け数"] = (
-        char_stats["試合数"]
-        - char_stats["勝ち数"]
-    )
-    
-    char_stats["勝率%"] = (
-        char_stats["勝ち数"]
-        / char_stats["試合数"]
-        * 100
-    ).round(1)
-    
-    st.dataframe(
-        char_stats,
-        use_container_width=True
-    )
+    char_stats = df.groupby("my_char")["win_flag"].agg(試合数="count", 勝ち数="sum")
+    char_stats["負け数"] = char_stats["試合数"] - char_stats["勝ち数"]
+    char_stats["勝率%"] = (char_stats["勝ち数"] / char_stats["試合数"] * 100).round(1)
+    st.dataframe(char_stats, use_container_width=True)
 
     # 勝率推移
     st.subheader("📈 勝率推移")
-    sel=st.selectbox("キャラ選択",df["my_char"].unique())
-    cdf=df[df["my_char"]==sel].copy()
-    cdf["rate"]=cdf["win_flag"].expanding().mean()*100
+    sel = st.selectbox("キャラ選択", df["my_char"].unique())
+    cdf = df[df["my_char"] == sel].copy()
+    cdf["rate"] = cdf["win_flag"].expanding().mean() * 100
     st.line_chart(cdf["rate"])
 
-    # 直近
+    # 直近勝率
     st.subheader("直近パフォーマンス")
-    N=st.slider("直近何戦？",10,100,30)
-    st.metric("直近勝率",
-              f"{df.tail(N)['win_flag'].mean()*100:.1f}%")
+    N = st.slider("直近何戦？", 10, 100, 30)
+    st.metric("直近勝率", f"{df.tail(N)['win_flag'].mean()*100:.1f}%")
 
-    # レーダー
+    # レーダーチャート
     st.subheader("🕸️ キャラ相性")
-    rc=st.selectbox("自キャラ",df["my_char"].unique(),key="r")
-    rdf=df[df["my_char"]==rc]
+    rc = st.selectbox("自キャラ", df["my_char"].unique(), key="r")
+    rdf = df[df["my_char"] == rc]
+    mu = rdf.groupby("opponent")["win_flag"].agg(["count", "mean"])
+    mu = mu[mu["count"] >= 3]
+    mu["winrate"] = mu["mean"] * 100
+    mu = mu.reset_index()
 
-    mu=rdf.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu=mu[mu["count"]>=3]
-    mu["winrate"]=mu["mean"]*100
-    mu=mu.reset_index()
-
-    if len(mu)>2:
-
+    if len(mu) > 2:
         def col(x):
-            if x<40:return"red"
-            elif x<60:return"yellow"
-            else:return"lime"
+            if x < 40: return "red"
+            elif x < 60: return "yellow"
+            else: return "lime"
+        mu["color"] = mu["winrate"].apply(col)
 
-        mu["color"]=mu["winrate"].apply(col)
-
-        fig=px.line_polar(mu,r="winrate",
-                          theta="opponent",
-                          range_r=[0,100],
-                          line_close=True,
-                          template="plotly_dark")
-
+        fig = px.line_polar(mu, r="winrate", theta="opponent", range_r=[0, 100], line_close=True, template="plotly_dark")
         fig.update_traces(fill="toself")
         fig.add_scatterpolar(
             r=mu["winrate"],
             theta=mu["opponent"],
             mode="markers+text",
-            marker=dict(size=10,color=mu["color"]),
+            marker=dict(size=10, color=mu["color"]),
             text=[f"{x:.0f}%" for x in mu["winrate"]]
         )
-
-        st.plotly_chart(fig,use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
     # 苦手ランキング
     st.subheader("⚠️ 苦手キャラ")
-    mu=df.groupby("opponent")["win_flag"].agg(["count","mean"])
-    mu=mu[mu["count"]>=5]
-    mu["winrate"]=mu["mean"]*100
-    st.dataframe(mu.sort_values("winrate"))
+    mu2 = df.groupby("opponent")["win_flag"].agg(["count", "mean"])
+    mu2 = mu2[mu2["count"] >= 5]
+    mu2["winrate"] = mu2["mean"] * 100
+    st.dataframe(mu2.sort_values("winrate"))
 
     # メモ振り返り
     st.subheader("📝 メモ振り返り")
-    mc=st.selectbox("キャラ",df["my_char"].unique(),key="m")
-    md=df[(df["my_char"]==mc)&(df["memo"]!="")].tail(5)
-    for _,r in md.iterrows():
+    mc = st.selectbox("キャラ", df["my_char"].unique(), key="m")
+    md = df[(df["my_char"] == mc) & (df["memo"] != "")].tail(5)
+    for _, r in md.iterrows():
         st.write(f"vs {r['opponent']}：{r['memo']}")
 
 # -------------------------
@@ -184,48 +158,41 @@ if len(df)>0:
 # -------------------------
 st.header("📋 戦績管理")
 
-if len(df)>0:
-
-    df["result"]=df["win_flag"].map({1:"勝ち",0:"負け"})
-
-    c1,c2=st.columns(2)
+if len(df) > 0:
+    df["result"] = df["win_flag"].map({1: "勝ち", 0: "負け"})
+    c1, c2 = st.columns(2)
     with c1:
-        mf=st.selectbox("自キャラ絞り込み",
-                        ["全て"]+list(df["my_char"].unique()))
+        mf = st.selectbox("自キャラ絞り込み", ["全て"] + list(df["my_char"].unique()))
     with c2:
-        of=st.selectbox("相手キャラ絞り込み",
-                        ["全て"]+list(df["opponent"].unique()))
+        of = st.selectbox("相手キャラ絞り込み", ["全て"] + list(df["opponent"].unique()))
 
-    view=df.copy()
-    if mf!="全て":view=view[view["my_char"]==mf]
-    if of!="全て":view=view[view["opponent"]==of]
+    view = df.copy()
+    if mf != "全て": view = view[view["my_char"] == mf]
+    if of != "全て": view = view[view["opponent"] == of]
 
-    show=view[["date","my_char","opponent",
-               "result","memo"]].copy()
-    show["削除"]=False
+    show = view[["date", "my_char", "opponent", "result", "memo"]].copy()
+    show["削除"] = False
 
-    edited=st.data_editor(show,
-                          use_container_width=True,
-                          height=300)
+    edited = st.data_editor(show, use_container_width=True, height=300)
+    del_rows = edited[edited["削除"] == True]
 
-    del_rows=edited[edited["削除"]==True]
-
-    if len(del_rows)>0 and st.button("チェック削除"):
-        for _,r in del_rows.iterrows():
-            df=df[~(
-                (df["date"]==r["date"])&
-                (df["my_char"]==r["my_char"])&
-                (df["opponent"]==r["opponent"])
+    if len(del_rows) > 0 and st.button("チェック削除"):
+        for _, r in del_rows.iterrows():
+            df = df[~(
+                (df["date"] == r["date"]) &
+                (df["my_char"] == r["my_char"]) &
+                (df["opponent"] == r["opponent"])
             )]
-        df.to_csv(FILE,index=False)
+        df.to_csv(FILE, index=False)
         st.success("削除しました。再読み込みしてください")
 
-# ===== バックアップダウンロード =====
+# -------------------------
+# バックアップダウンロード
+# -------------------------
 st.subheader("💾 データバックアップ")
 
 if len(df) > 0:
     csv = df.to_csv(index=False).encode("utf-8-sig")
-
     st.download_button(
         label="📥 戦績CSVをダウンロード",
         data=csv,
