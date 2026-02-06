@@ -156,36 +156,75 @@ if len(df) > 0:
     # レーダーチャート
     # -------------------------
     st.subheader("🕸️ キャラ相性レーダー")
-
+    
     radar_char = st.selectbox(
-        "自キャラ選択",
+        "レーダーを見る自キャラ",
         df["my_char"].unique(),
         key="radar"
     )
-
-    rdf = df[df["my_char"]==radar_char]
-
-    rmu = (
-        rdf.groupby("opponent")["win_flag"]
+    
+    radar_df = df[df["my_char"] == radar_char]
+    
+    mu = (
+        radar_df.groupby("opponent")["win_flag"]
         .agg(["count","mean"])
         .reset_index()
     )
-
-    rmu = rmu[rmu["count"]>=3]
-    rmu["winrate"]=rmu["mean"]*100
-
-    if len(rmu)>2:
+    
+    mu = mu[mu["count"] >= 3]
+    mu["winrate"] = mu["mean"] * 100
+    
+    if len(mu) > 2:
+    
+        # 勝率で色分け
+        def color(rate):
+            if rate < 40:
+                return "red"
+            elif rate < 60:
+                return "yellow"
+            else:
+                return "lime"
+    
+        mu["color"] = mu["winrate"].apply(color)
+    
         fig = px.line_polar(
-            rmu,
+            mu,
             r="winrate",
             theta="opponent",
             line_close=True,
-            range_r=[0,100]
+            range_r=[0,100],
+            template="plotly_dark"
         )
-        fig.update_traces(fill="toself")
-        st.plotly_chart(fig,use_container_width=True)
+    
+        # 線設定
+        fig.update_traces(
+            fill="toself",
+            line=dict(width=3, color="cyan")
+        )
+    
+        # 各点を色分け表示
+        fig.add_scatterpolar(
+            r=mu["winrate"],
+            theta=mu["opponent"],
+            mode="markers+text",
+            marker=dict(
+                size=10,
+                color=mu["color"]
+            ),
+            text=[f"{w:.0f}%" for w in mu["winrate"]],
+            textposition="top center"
+        )
+    
+        fig.update_layout(
+            paper_bgcolor="black",
+            plot_bgcolor="black",
+            font=dict(color="white", size=14)
+        )
+    
+        st.plotly_chart(fig, use_container_width=True)
+    
     else:
-        st.write("3戦以上のデータが必要")
+        st.write("レーダー表示するには各キャラ3戦以上必要です")
 
 # -------------------------
 # 削除
