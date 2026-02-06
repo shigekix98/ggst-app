@@ -1,22 +1,27 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import os
+from datetime import datetime
 
-DATA_FILE = "ggst_matches.csv"
+# -------------------------
+# 基本設定（スマホUI）
+# -------------------------
+st.set_page_config(
+    page_title="GGST戦績管理",
+    layout="centered"
+)
 
-st.set_page_config(layout="wide")
-st.title("GGST 戦績管理")
+st.title("🎮 GGST戦績管理アプリ")
 
-# データ読み込み
-if os.path.exists(DATA_FILE):
-    df = pd.read_csv(DATA_FILE)
-else:
-    df = pd.DataFrame(columns=[
-        "date","my_char","opponent","result","memo"
-    ])
+DATA_FILE = "ggst_log.csv"
 
-char_list = [
+# -------------------------
+# キャラ設定
+# -------------------------
+
+favorite_chars = ["カイ"]  # ⭐自キャラをここに
+
+all_chars = [
     "ソル","カイ","メイ","ミリア","チップ",
     "ポチョムキン","ファウスト","アクセル",
     "ラムレザル","レオ","名残雪",
@@ -24,74 +29,105 @@ char_list = [
     "ブリジット","シン","ベッドマン？",
     "飛鳥=R#","ジョニー","エルフェルト",
     "ザトー","闇慈","イノ","ゴールドルイス",
-    "ジャック・オー","梅喧","テスタメント","A.B.A"
-    "スレイヤー","ディズィー","ヴェノム","ユニカ","ルーシー"
+    "ジャック・オー","梅喧","テスタメント",
+    "A.B.A","スレイヤー","ディズィー",
+    "ヴェノム","ユニカ","ルーシー"
 ]
 
-st.header("🎮 戦績入力")
+char_list = favorite_chars + [c for c in all_chars if c not in favorite_chars]
 
-c1,c2 = st.columns(2)
-with c1:
-    my_char = st.selectbox("自キャラ", char_list)
-with c2:
+# -------------------------
+# データ読み込み
+# -------------------------
+if os.path.exists(DATA_FILE):
+    df = pd.read_csv(DATA_FILE)
+else:
+    df = pd.DataFrame(columns=["date","opponent","result","memo"])
+
+# -------------------------
+# 入力UI
+# -------------------------
+st.header("📌 戦績入力")
+
+col1, col2 = st.columns(2)
+
+with col1:
     opponent = st.selectbox("相手キャラ", char_list)
 
-result = st.radio("勝敗", ["Win","Lose"], horizontal=True)
-memo = st.text_input("対戦メモ")
+with col2:
+    result = st.radio("結果", ["Win","Lose"], horizontal=True)
 
-if st.button("保存"):
-    new_data = pd.DataFrame([{
+memo = st.text_input("メモ（任意）")
+
+if st.button("✅ 記録する", use_container_width=True):
+    new_row = {
         "date": datetime.now(),
-        "my_char": my_char,
         "opponent": opponent,
         "result": result,
         "memo": memo
-    }])
-    df = pd.concat([df,new_data])
-    df.to_csv(DATA_FILE,index=False)
-    st.success("保存完了！")
+    }
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    df.to_csv(DATA_FILE, index=False)
+    st.success("保存しました！")
 
-# 基本統計
-st.header("📊 基本統計")
-if len(df)>0:
-    wins=(df["result"]=="Win").sum()
-    total=len(df)
-    st.metric("総試合数",total)
-    st.metric("勝率",f"{wins/total*100:.1f}%")
+# -------------------------
+# 統計処理
+# -------------------------
+if len(df) > 0:
 
-# 直近20試合
-st.header("⚡ 直近20試合")
-recent=df.tail(20)
-if len(recent)>0:
-    st.metric("直近勝率",
-        f"{(recent['result']=='Win').mean()*100:.1f}%")
+    st.header("📊 戦績分析")
 
-# 苦手キャラ
-st.header("🔥 苦手キャラTOP3")
+    df["win_flag"] = df["result"].apply(lambda x: 1 if x=="Win" else 0)
 
-stats=[]
-for char in df["opponent"].unique():
-    cdf=df[df["opponent"]==char]
-    if len(cdf)<5: continue
-    rate=(cdf["result"]=="Win").mean()*100
-    stats.append([char,len(cdf),rate])
+    total = len(df)
+    wins = df["win_flag"].sum()
+    winrate = wins / total * 100
 
-if stats:
-    sdf=pd.DataFrame(
-        stats,columns=["キャラ","試合数","勝率"]
-    ).sort_values("勝率").head(3)
+    st.metric("総合勝率", f"{winrate:.1f}%")
 
-    for _,r in sdf.iterrows():
-        st.error(f"{r['キャラ']} 勝率{r['勝率']:.1f}%")
+    # キャラ別
+    char_stats = (
+        df.groupby("opponent")["win_flag"]
+        .agg(["count","mean"])
+        .reset_index()
+    )
+    char_stats["winrate"] = char_stats["mean"]*100
 
-# メモ検索
-st.header("🔍 メモ検索")
-key=st.text_input("検索")
-if key:
-    st.dataframe(df[
-        df["memo"].str.contains(key,na=False) |
-        df["opponent"].str.contains(key,na=False)
-    ])
+    st.subheader("キャラ別勝率")
+    st.dataframe(
+        char_stats[["opponent","count","winrate"]]
+        .sort_values("winrate")
+    )
 
-st.header("履歴")
-st.dataframe(df.sort_values("date",ascending=False))
+    # -------------------------
+    # 苦手キャラ分析
+    # -------------------------
+    st.subheader("⚠️ 苦手キャラ")
+
+    weak = char_stats[char_stats["count"]>=5]
+    if len(weak)>0:
+        worst = weak.sort_values("winrate").head(3)
+        for _, r in worst.iterrows():
+            st.write(
+                f"🔥 {r['opponent']} "
+                f"勝率 {r['winrate']:.1f}% "
+                f"({int(r['count'])}戦)"
+            )
+
+    # -------------------------
+    # グラフ
+    # -------------------------
+    st.subheader("📈 勝率推移")
+
+    df["cum_winrate"] = df["win_flag"].expanding().mean()*100
+    st.line_chart(df["cum_winrate"])
+
+    st.subheader("📊 キャラ別勝率グラフ")
+    chart_data = char_stats.set_index("opponent")["winrate"]
+    st.bar_chart(chart_data)
+
+# -------------------------
+# 生データ表示
+# -------------------------
+st.header("📄 記録一覧")
+st.dataframe(df.tail(50))
