@@ -73,11 +73,14 @@ if st.button("記録する"):
 
     # session_state に追記
     st.session_state.df = pd.concat([st.session_state.df, new], ignore_index=True)
-    df = st.session_state.df
 
     # CSV 保存
-    df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    st.session_state.df.to_csv(FILE, index=False, date_format="%Y-%m-%d %H:%M:%S")
+    
     st.success(f"{my_char} vs {opponent} を保存しました ({now.strftime('%Y-%m-%d %H:%M:%S')})")
+
+    # ★ページを再実行して即時反映
+    st.experimental_rerun()
 
 # -------------------------
 # 分析
