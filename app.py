@@ -144,6 +144,24 @@ if len(df) > 0:
     st.bar_chart(chart_data)
 
 # -------------------------
+# マッチアップ分析（自キャラ×相手）
+# -------------------------
+st.subheader("🎯 マッチアップ別勝率")
+
+matchup_stats = (
+    df.groupby(["my_char","opponent"])["win_flag"]
+    .agg(["count","mean"])
+    .reset_index()
+)
+
+matchup_stats["winrate"] = matchup_stats["mean"] * 100
+
+st.dataframe(
+    matchup_stats[["my_char","opponent","count","winrate"]]
+    .sort_values("winrate")
+)
+
+# -------------------------
 # データ表示＆削除
 # -------------------------
 st.header("📄 記録一覧")
