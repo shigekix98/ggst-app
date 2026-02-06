@@ -31,7 +31,7 @@ if os.path.exists(FILE):
 else:
     df = pd.DataFrame(columns=["date","my_char","opponent","win_flag","memo"])
 
-# 日付をdatetime型に変換
+# 日付をdatetime型に変換（読み込み時）
 if len(df) > 0:
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
@@ -57,7 +57,7 @@ result = st.radio("結果", ["勝ち","負け"])
 memo = st.text_input("メモ")
 
 if st.button("記録する"):
-    # 日付を文字列に変換してCSVに保存
+    # 日付を文字列化して保存
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     new = pd.DataFrame([{
         "date": now_str,
@@ -69,7 +69,7 @@ if st.button("記録する"):
     df = pd.concat([df, new], ignore_index=True)
     df.to_csv(FILE, index=False)
     st.success("保存しました")
-    st.experimental_rerun()  # 入力後に即反映
+    # 再読み込みで反映（即反映はなし）
 
 # -------------------------
 # 分析
@@ -92,7 +92,6 @@ if len(df) > 0:
     # 勝率推移
     # -------------------------
     st.subheader("📈 勝率推移")
-    # 日／月フィルタ
     time_filter = st.radio("集計単位", ["日別","月別"])
     char_sel = st.selectbox("キャラ選択（全体は空欄）", ["全体"] + list(df["my_char"].unique()), key="rate_char")
 
