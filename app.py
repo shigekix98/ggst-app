@@ -162,11 +162,16 @@ if len(view) > 0:
     grouped["勝率(%)"] = (grouped["勝利数"] / grouped["試合数"] * 100).round(1)
 
     # Plotlyで2軸グラフ作成
-    fig = px.line(grouped, x=grouped.index, y="勝率(%)", title="勝率＆試合数推移", labels={"y":"勝率(%)", "x":"日付"})
-    fig.add_bar(x=grouped.index, y=grouped["試合数"], name="試合数", opacity=0.3, yaxis="y2")
-
+    fig = px.line(grouped, x=grouped.index, y="勝率(%)",
+                  title="勝率＆試合数推移",
+                  labels={"y":"勝率(%)", "x":"日付"})
+    
+    fig.add_bar(x=grouped.index, y=grouped["試合数"],
+                name="試合数", opacity=0.3, yaxis="y2")
+    
     # 2軸設定
     fig.update_layout(
+        yaxis=dict(range=[0,100]),  # ←ここで勝率軸を0%〜100%に固定
         yaxis2=dict(
             title="試合数",
             overlaying="y",
@@ -175,7 +180,7 @@ if len(view) > 0:
         legend=dict(y=0.99, x=0.01),
         template="plotly_white"
     )
-
+    
     st.plotly_chart(fig, use_container_width=True)
 
 else:
