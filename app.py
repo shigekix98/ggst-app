@@ -75,16 +75,6 @@ if len(df) > 0:
     st.metric("総合勝率", f"{overall:.1f}%")
 
 # -------------------------
-# 今日の勝率
-# -------------------------
-if len(df) > 0:
-    today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
-    today = df[df["date"].notna() & (df["date"].dt.date == today_date)]
-    if len(today) > 0:
-        st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
-        st.write(f"今日の試合数：{len(today)}")
-
-# -------------------------
 # 勝率推移（日別／月別 + キャラ別切替）
 # -------------------------
 if len(df) > 0:
