@@ -100,17 +100,16 @@ if len(df)>0:
     st.metric("総合勝率",f"{overall:.1f}%")
 
     # ---------------------
-    # キャラ別勝率
+    # 直近成績
     # ---------------------
-    st.subheader("キャラ別勝率")
+    st.subheader("直近パフォーマンス")
 
-    mu = (
-        df.groupby("my_char")["win_flag"]
-        .agg(["count","mean"])
-        .reset_index()
-    )
-    mu["winrate"]=mu["mean"]*100
-    st.dataframe(mu)
+    N = st.slider("直近何戦？",10,100,30)
+
+    recent=df.tail(N)
+    rrate=recent["win_flag"].mean()*100
+
+    st.metric(f"直近{N}戦勝率",f"{rrate:.1f}%")
 
     # ---------------------
     # 勝率推移
@@ -125,19 +124,7 @@ if len(df)>0:
     cdf = df[df["my_char"]==sel].copy()
     cdf["cum_rate"]=cdf["win_flag"].expanding().mean()*100
     st.line_chart(cdf["cum_rate"])
-
-    # ---------------------
-    # 直近成績
-    # ---------------------
-    st.subheader("直近パフォーマンス")
-
-    N = st.slider("直近何戦？",10,100,30)
-
-    recent=df.tail(N)
-    rrate=recent["win_flag"].mean()*100
-
-    st.metric(f"直近{N}戦勝率",f"{rrate:.1f}%")
-
+    
     # ---------------------
     # レーダー
     # ---------------------
@@ -215,7 +202,20 @@ if len(df)>0:
             "winrate":"勝率%"
         })
     )
+    
+    # ---------------------
+    # キャラ別勝率
+    # ---------------------
+    st.subheader("キャラ別勝率")
 
+    mu = (
+        df.groupby("my_char")["win_flag"]
+        .agg(["count","mean"])
+        .reset_index()
+    )
+    mu["winrate"]=mu["mean"]*100
+    st.dataframe(mu)
+    
     # -------------------------
     # 戦績リスト管理（タップ削除）
     # -------------------------
