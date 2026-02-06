@@ -5,7 +5,7 @@ import os
 
 st.set_page_config(layout="wide")
 
-# CSVパス（Cloudでも安全）
+# CSVパス
 FILE = os.path.join(os.getcwd(), "ggst_log.csv")
 
 # -------------------------
@@ -30,6 +30,7 @@ characters = [
 if "df" not in st.session_state:
     if os.path.exists(FILE):
         df_load = pd.read_csv(FILE)
+        # 日付を安全に datetime 化
         df_load["date"] = pd.to_datetime(df_load["date"], errors="coerce")
         df_load = df_load.dropna(subset=["date"])
         st.session_state.df = df_load
@@ -91,6 +92,12 @@ if len(df) > 0:
 
     # 今日の勝率
     today_date = pd.Timestamp.now(tz="Asia/Tokyo").date()
+    # 日付型が確実か確認
+    if df["date"].dtype != "<M8[ns]":
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"])
+        st.session_state.df = df
+
     today = df[df["date"].dt.date == today_date]
     if len(today) > 0:
         st.metric("今日の勝率", f"{today['win_flag'].mean()*100:.1f}%")
@@ -172,4 +179,3 @@ if len(df) > 0:
     )
 else:
     st.info("まだデータがありません")
-
