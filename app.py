@@ -99,6 +99,32 @@ if len(df)>0:
     overall = df["win_flag"].mean()*100
     st.metric("総合勝率",f"{overall:.1f}%")
 
+    # -------------------------
+    # 今日の勝率
+    # -------------------------
+    st.subheader("📅 今日の戦績")
+    
+    df["date"] = pd.to_datetime(df["date"])
+    
+    today = df[
+        df["date"].dt.date ==
+        pd.Timestamp.now().date()
+    ]
+    
+    if len(today) > 0:
+    
+        today_rate = today["win_flag"].mean()*100
+    
+        st.metric(
+            "今日の勝率",
+            f"{today_rate:.1f}%"
+        )
+    
+        st.write(f"試合数：{len(today)}")
+    
+    else:
+        st.write("今日はまだ対戦なし")
+    
     # ---------------------
     # 直近成績
     # ---------------------
@@ -225,23 +251,28 @@ if len(df)>0:
     df["result"] = df["win_flag"].map({1:"勝ち",0:"負け"})
     
     # 絞り込み
-    fchar = st.selectbox(
-        "自キャラで絞り込み",
-        ["全て"] + list(df["my_char"].unique())
-    )
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        my_filter = st.selectbox(
+            "自キャラ絞り込み",
+            ["全て"] + list(df["my_char"].unique())
+        )
+    
+    with col2:
+        opp_filter = st.selectbox(
+            "相手キャラ絞り込み",
+            ["全て"] + list(df["opponent"].unique())
+        )
     
     view = df.copy()
     
-    if fchar != "全て":
-        view = view[view["my_char"] == fchar]
+    if my_filter != "全て":
+        view = view[view["my_char"] == my_filter]
     
-    view = view.reset_index(drop=True)
-    
-    # 表示用
-    show = view[[
-        "date","my_char","opponent","result","memo"
-    ]].copy()
-    
+    if opp_filter != "全て":
+        view = view[view["opponent"] == opp_filter]
+      
     # 削除チェック列追加
     show["削除"] = False
     
